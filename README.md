@@ -14,6 +14,73 @@ Deep Research Agent là một hệ thống tự động hóa quy trình nghiên 
 
 ## Kiến trúc
 
+### Sequence Diagram
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant A as API
+    participant O as Orchestrator
+    participant P as PrepareService
+    participant R as ResearchService
+    participant E as EditService
+    participant LLM as LLM Services
+    participant S as SearchService
+    participant G as GitHubStorage
+
+    C->>A: POST /api/v1/research
+    A->>O: Create Research Task
+    O->>C: 202 Accepted (task_id)
+    
+    %% Prepare Phase
+    O->>P: Analyze Query
+    activate P
+    P->>LLM: Generate Analysis
+    LLM-->>P: Query Analysis
+    P->>S: Search Overview Info
+    S-->>P: Search Results
+    P->>LLM: Create Outline
+    LLM-->>P: Research Outline
+    P-->>O: Analysis & Outline
+    deactivate P
+    
+    %% Research Phase
+    loop Each Section
+        O->>R: Research Section
+        activate R
+        R->>S: Deep Search
+        S-->>R: Detailed Results
+        R->>LLM: Analyze & Synthesize
+        LLM-->>R: Section Content
+        R-->>O: Section Complete
+        deactivate R
+    end
+    
+    %% Edit Phase
+    O->>E: Edit Content
+    activate E
+    E->>LLM: Edit & Format
+    LLM-->>E: Edited Content
+    E->>LLM: Generate Title
+    LLM-->>E: Final Title
+    E-->>O: Final Content
+    deactivate E
+    
+    %% Storage Phase
+    O->>G: Save Research
+    G-->>O: GitHub URL
+    
+    %% Complete
+    O->>A: Update Status
+    A->>C: Complete (github_url)
+
+    %% Status Check (parallel flow)
+    C->>A: GET /api/v1/research/{id}
+    A->>O: Get Status
+    O-->>A: Current Status
+    A-->>C: Research Status
+```
+
 ### Core Components
 
 1. **Prepare Service**
