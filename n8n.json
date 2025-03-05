@@ -1,0 +1,639 @@
+{
+    "name": "Deep Research Agents v2 (Perplexity + Claude)",
+    "nodes": [
+      {
+        "parameters": {
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+        "typeVersion": 1.1,
+        "position": [
+          -900,
+          760
+        ],
+        "id": "08036d8d-9e94-4441-b01b-88e46801fe90",
+        "name": "OpenAI Chat Model",
+        "credentials": {
+          "openAiApi": {
+            "id": "xaGzKC7FP7HOmPTs",
+            "name": "OpenAi account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "fieldToSplitOut": " message.content.researchSections",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.splitOut",
+        "typeVersion": 1,
+        "position": [
+          -500,
+          900
+        ],
+        "id": "c1536903-e334-4857-a9fe-615051e9c366",
+        "name": "Split Out"
+      },
+      {
+        "parameters": {
+          "model": "claude-3-5-sonnet-20241022",
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+        "typeVersion": 1.2,
+        "position": [
+          -340,
+          660
+        ],
+        "id": "68487d95-5ffd-4cf5-be52-d2250d9f44c0",
+        "name": "Anthropic Chat Model",
+        "credentials": {
+          "anthropicApi": {
+            "id": "j7WiWpfebV1IlTCw",
+            "name": "Anthropic account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "mode": "combine",
+          "combineBy": "combineByPosition",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.merge",
+        "typeVersion": 3,
+        "position": [
+          20,
+          880
+        ],
+        "id": "2113c684-0bdd-4042-90dd-eaa84b10a63f",
+        "name": "Merge"
+      },
+      {
+        "parameters": {
+          "fieldsToAggregate": {
+            "fieldToAggregate": [
+              {
+                "fieldToAggregate": "title"
+              },
+              {
+                "fieldToAggregate": "output"
+              }
+            ]
+          },
+          "options": {
+            "mergeLists": true
+          }
+        },
+        "type": "n8n-nodes-base.aggregate",
+        "typeVersion": 1,
+        "position": [
+          200,
+          880
+        ],
+        "id": "275e416a-6519-41a9-8502-3028293acacb",
+        "name": "Aggregate"
+      },
+      {
+        "parameters": {
+          "modelId": {
+            "__rl": true,
+            "value": "gpt-4o-mini",
+            "mode": "list",
+            "cachedResultName": "GPT-4O-MINI"
+          },
+          "messages": {
+            "values": [
+              {
+                "content": "=Create a title for the incoming essay. The tone of the essay is {{ $('Query Breakdown').item.json.choices[0].message.content.Scope }} and the target audience is {{ $('Query Breakdown').item.json.choices[0].message.content[\"Target Audience\"] }}.\n\nHere is the essay:\n{{ $json.output }}\n\n# Output format\nOutput the title in plain text, no quotation marks, and capitalize the first letter of each word.\nExample: Is Artificial Intelligence A Friend Or Foe?\n\n**Important:** Write Vietnamese, even though the instructions are in English.",
+                "role": "system"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.openAi",
+        "typeVersion": 1.8,
+        "position": [
+          0,
+          1120
+        ],
+        "id": "779cd6be-cda5-48b7-bdb2-3a711a6426cc",
+        "name": "Create TItle",
+        "credentials": {
+          "openAiApi": {
+            "id": "xaGzKC7FP7HOmPTs",
+            "name": "OpenAi account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "updates": [
+            "message"
+          ],
+          "additionalFields": {}
+        },
+        "type": "n8n-nodes-base.telegramTrigger",
+        "typeVersion": 1.1,
+        "position": [
+          -1340,
+          900
+        ],
+        "id": "0ab337ac-8660-4b51-8e6b-354e57169407",
+        "name": "Telegram Trigger",
+        "webhookId": "1627ce1d-2105-4b24-abf5-9f6d8e21e92f",
+        "credentials": {
+          "telegramApi": {
+            "id": "3ngRh2HDXChgGMYa",
+            "name": "Telegram Deep Research Bot"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "promptType": "define",
+          "text": "=List of titles: {{ $json.title }}\nList of article content: {{ $json.output }}",
+          "options": {
+            "systemMessage": "=Important: Do not shorten or summarize the content. Use the full information from the input.\n\n## Overview\nYou are an expert editor specializing in creating and refining content to output a high quality, formatted article. You are given a list of titles and outputs and you will use these to create a essay tailored towards the defined target audience. Create a section in the article for each title, with a hyperlinked source in each section based on the content.\n\n## Objective\n1. Create content for each title using the provided content (in Vietnamese)\n2. Each section should contain inline citations *Don't leave any out*\n3. Improve the flow of the essay and format it for readability\n4. The content of each section must be linked together. If you feel it is not linked, create or edit the first and last sentences of each section so that they are linked and coherent.\n\n## Citation Management\n1. Preserve all inline citations\n2. Standardize citation format\n3. Ensure citations don't disrupt the flow of reading\n\n## Source Section\n1. Create ONE \"Sources\" section at the end of the newsletter\n2. Format each source entry consistently\n3. Include complete URL for each source\n4. Organize all sources alphabetically\n5. Verify all links are functional\n\n## Output Format\nThe essay should be structured as standard markdown format:\n- Do not output a title or an introduction, the output should start with the first article heading\n- Main content with hyperlink citations in each section.\n- Headers for each section of the article\n- Sources section at the end with all links\n\nToday's date is {{ $now }}\n\nImportant: Do not shorten or summarize the content. Use the full information from the input.\n"
+          }
+        },
+        "type": "@n8n/n8n-nodes-langchain.agent",
+        "typeVersion": 1.7,
+        "position": [
+          -340,
+          1120
+        ],
+        "id": "d3f60f97-1608-4571-ba9a-3eb3b580059d",
+        "name": "Editor"
+      },
+      {
+        "parameters": {
+          "model": {
+            "__rl": true,
+            "value": "gpt-4o",
+            "mode": "list",
+            "cachedResultName": "gpt-4o"
+          },
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+        "typeVersion": 1.2,
+        "position": [
+          -380,
+          1280
+        ],
+        "id": "edf7e85a-027d-4401-bf80-489055792c21",
+        "name": "OpenAI Chat Model1",
+        "credentials": {
+          "openAiApi": {
+            "id": "xaGzKC7FP7HOmPTs",
+            "name": "OpenAi account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "name": "Perplexity",
+          "description": "Call this tool to search the internet",
+          "workflowId": {
+            "__rl": true,
+            "value": "paH51fj1Am8RARww",
+            "mode": "list",
+            "cachedResultName": "Perplexity Search Tool v1"
+          },
+          "workflowInputs": {
+            "mappingMode": "defineBelow",
+            "value": {},
+            "matchingColumns": [],
+            "schema": [],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          }
+        },
+        "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+        "typeVersion": 2,
+        "position": [
+          -760,
+          760
+        ],
+        "id": "38abb47b-3359-4f98-b4f7-97a4f891e2c0",
+        "name": "Perplexity"
+      },
+      {
+        "parameters": {
+          "name": "Perplexity",
+          "description": "Call this tool to search the internet",
+          "workflowId": {
+            "__rl": true,
+            "value": "paH51fj1Am8RARww",
+            "mode": "list",
+            "cachedResultName": "Perplexity Search Tool v1"
+          },
+          "workflowInputs": {
+            "mappingMode": "defineBelow",
+            "value": {},
+            "matchingColumns": [],
+            "schema": [],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": false
+          }
+        },
+        "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+        "typeVersion": 2,
+        "position": [
+          -160,
+          660
+        ],
+        "id": "f9326d70-6c2a-47e9-833c-197618fcced5",
+        "name": "Perplexity1"
+      },
+      {
+        "parameters": {
+          "modelId": {
+            "__rl": true,
+            "value": "gpt-4o-mini",
+            "mode": "list",
+            "cachedResultName": "GPT-4O-MINI"
+          },
+          "messages": {
+            "values": [
+              {
+                "content": "=Bạn sẽ tiếp nhận yêu cầu về việc viết phân tích nghị luận (persuasive analytical essays). Hãy phân tích yêu cầu đó để làm rõ tim các thông tin sau: \n- Topic: chủ đề bài luận.\n- Scope: phạm vi bài luận.\n- Target Audience: đối tượng đọc bài.\n\nThông tin nào không rõ thì để là: undefined. \nRiêng Topic thì phải có thông tin.\n\nVí dụ 1 về nội dung: \nTopic: \"The Effects of Climate Change on Coastal Ecosystems\"\nScope: A case study analysis of the impact of rising sea levels on mangrove forests.\nTarget Audience: Environmental scientists and policymakers.\n\nVí dụ 2 về nội dung: \nTopic: \"The Impact of Social Media on Political Polarization\"\nScope: A comprehensive analysis of the relationship between social media usage and political attitudes.\nTarget Audience: Political science researchers and graduate students.\n\nTrả về dạng json (chỉ json):\nFormat: \n[\n{\n\"Topic\": \"chủ đề bài luận\",\n\"Scope\": \"phạm vi bài luận\",\n\"Target Audience\": \"đối tượng đọc bài\"\n}\n]",
+                "role": "system"
+              },
+              {
+                "content": "={{ $json.message.text }}"
+              }
+            ]
+          },
+          "simplify": false,
+          "jsonOutput": true,
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.openAi",
+        "typeVersion": 1.8,
+        "position": [
+          -1200,
+          900
+        ],
+        "id": "a51f38b5-88e0-488f-a800-8e0e471e48f5",
+        "name": "Query Breakdown",
+        "credentials": {
+          "openAiApi": {
+            "id": "xaGzKC7FP7HOmPTs",
+            "name": "OpenAi account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "modelId": {
+            "__rl": true,
+            "value": "gpt-4o-mini",
+            "mode": "list",
+            "cachedResultName": "GPT-4O-MINI"
+          },
+          "messages": {
+            "values": [
+              {
+                "content": "=Your job is to split out the table of contents into an individual item for each section. Output each section separately in a field called \"researchSections\". When doing so, keep in mind that the Essay target audience is {{ $('Query Breakdown').item.json.choices[0].message.content[\"Target Audience\"] }} and the scope of the Essay should be {{ $('Query Breakdown').item.json.choices[0].message.content.Scope }}.\n\nFormat: json\n\"researchSections\": \n[\n{\n\"title\": \"Title of Essay section\",\n\"description\": \"Long Description of Essay section\"\n},\n{\n\"title\": \"Title of Essay section\",\n\"description\": \"Long Description of Essay section\"\n}\n]\n\nHere is the table of contents: {{ $json.output }}",
+                "role": "system"
+              }
+            ]
+          },
+          "jsonOutput": true,
+          "options": {}
+        },
+        "type": "@n8n/n8n-nodes-langchain.openAi",
+        "typeVersion": 1.8,
+        "position": [
+          -800,
+          1120
+        ],
+        "id": "c696579d-7f65-4646-b7d4-73895a705124",
+        "name": "Task Planning",
+        "credentials": {
+          "openAiApi": {
+            "id": "xaGzKC7FP7HOmPTs",
+            "name": "OpenAi account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "promptType": "define",
+          "text": "=Research Topic: {{ $json.choices[0].message.content.Topic }}\nResearch Scope: {{ $json.choices[0].message.content.Scope }}\nResearch Target Audience: {{ $json.choices[0].message.content[\"Target Audience\"] }}",
+          "hasOutputParser": true,
+          "options": {
+            "systemMessage": "=## Overview\n\nYou are an AI agent responsible for planning and outlining persuasive analytical essays by creating a detailed table of contents that aligns with the topic, the strength of argument, and the target audience (e.g., general readers, students, informed public).\n\n## Context\n\n-   The analytical essay will vary in topic, scope, and target audience depending on the request.\n-   Your role is to utilize the \"tavily\" tool to conduct focused research, identify key perspectives and counterarguments, and craft a detailed, logically structured table of contents.\n-   The table of contents should showcase a balanced and insightful approach to the topic, guiding the reader through a compelling line of reasoning.\n\n## Instructions\n\n1.  Carefully analyze the provided information, including the essay topic, thesis statement (or central question), scope, and target audience details.\n2.  Employ the \"Perplexity\" tool to perform targeted research on the topic, identifying relevant viewpoints, supporting evidence, and potential counterarguments.\n3.  Based on your research findings, construct a detailed table of contents with clearly defined sections and sub-sections that build a persuasive argument and address counterclaims.\n4.  Ensure the table of contents demonstrates a clear line of reasoning, logical flow, and balanced presentation of different perspectives.\n\n## Tools\n\n-   Perplexity tool for internet research (focus on credible news sources, reputable websites, and diverse perspectives)\n\nHere's the revised `Examples` section with the table of contents formatted as requested:\n\n## Examples\n\n-   **Input:**\n    *   Topic: \"The Impact of Social Media on Political Discourse\"\n    *   Thesis Statement: \"While social media has democratized access to political information, its echo chamber effect exacerbates political polarization and hinders constructive dialogue.\"\n    *   Target Audience: Informed general readers and college students.\n\n-   **Output:**\n    Table of Contents:\n    1.  Introduction: Hook: The Rise of Social Media as a Political Arena. Background: How Social Media Changed Political Information Consumption. Thesis Statement: Balancing Democratization and Polarization.\n    2.  Democratization of Information: Increased Access to Diverse Sources. Citizen Journalism and Amplification of Marginalized Voices. Case Studies: Social Media's Role in Political Movements.\n    3.  The Echo Chamber Effect: Algorithmic Filtering and Personalized Content. Confirmation Bias and Reinforcement of Existing Beliefs. Empirical Evidence: Studies on Social Media Polarization.\n    4.  Counterarguments: Social Media as a Bridge: Potential for Cross-Ideological Dialogue. Exposure to Diverse Perspectives. Limitations of Counterarguments.\n    5.  Exacerbation of Political Polarization: Spread of Misinformation and Disinformation. Increased Anonymity and Incivility. The Role of Social Media in Political Unrest.\n    6.  Conclusion: Restatement of Thesis: The Double-Edged Sword of Social Media. Implications for Political Discourse and Democracy. Call to Action: Promoting Media Literacy and Critical Thinking.\n\n-   **Input:**\n    *   Topic: \"The Ethics of Artificial Intelligence in Healthcare\"\n    *   Thesis Statement: \"The integration of AI in healthcare presents significant ethical challenges concerning patient privacy, algorithmic bias, and the potential erosion of human empathy.\"\n    *   Target Audience: Healthcare professionals, policymakers, and the general public.\n\n-   **Output:**\n    Table of Contents:\n    1.  Introduction: Hook: AI's Growing Presence in Healthcare. Background: Current Applications of AI in Medicine. Thesis Statement: Ethical Concerns and the Need for Regulation.\n    2.  Patient Privacy: The Collection and Storage of Sensitive Medical Data. Potential for Data Breaches and Misuse. Compliance with HIPAA and Other Regulations.\n    3.  Algorithmic Bias: Bias in Training Data and Its Impact on AI Performance. Disparities in Healthcare Outcomes Based on Demographics. Strategies for Mitigating Algorithmic Bias.\n    4.  The Erosion of Human Empathy: The Role of Empathy in the Doctor-Patient Relationship. The Risk of Over-Reliance on AI and Reduced Human Interaction. Balancing Technology and Human Touch in Healthcare.\n    5.  Counterarguments: Benefits of AI in Healthcare: Improved Diagnostic Accuracy. Increased Efficiency and Reduced Costs. Limitations of Counterarguments.\n    6.  Conclusion: Restatement of Thesis: Navigating the Ethical Minefield of AI in Healthcare. Policy Recommendations for Responsible AI Implementation. The Future of AI Ethics in Healthcare.\n\n## SOP (Standard Operating Procedure)\n\n1.  Thoroughly review the provided details about the essay topic, thesis statement (or central question), scope, and target audience.\n2.  Utilize the \"Perplexity\" tool to conduct targeted research, identifying relevant viewpoints, supporting evidence, and potential counterarguments.\n3.  Brainstorm a detailed table of contents with logically structured sections and sub-sections that build a persuasive argument and address counterclaims.\n4.  Ensure that each section demonstrates a clear line of reasoning, logical flow, and balanced presentation of different perspectives.\n5.  Finalize the table of contents: detailed descriptions for each section, outlining the main arguments, evidence, and potential counterarguments to be addressed.\n\n## Final Notes\n\n-   Maintain a balanced and insightful approach to the topic, acknowledging different viewpoints and addressing counterarguments.\n-   Pay close attention to the logical flow and coherence of the table of contents, ensuring that each section builds upon the previous one.\n-   Aim for a persuasive and engaging line of reasoning that resonates with the target audience.\n\n---\n\nHere is the current date {{ $now }}"
+          }
+        },
+        "type": "@n8n/n8n-nodes-langchain.agent",
+        "typeVersion": 1.7,
+        "position": [
+          -900,
+          900
+        ],
+        "id": "90627c71-b2ed-49a2-8d35-7c7e96cb85f6",
+        "name": "Outline Creator"
+      },
+      {
+        "parameters": {
+          "promptType": "define",
+          "text": "=Essay's table of content:\n{{ $('Outline Creator').item.json.output }}\n\n\nSection Title: {{ $('Split Out').item.json.title }}\n\nSection Description: {{ $('Split Out').item.json.description }}\n\nEssay Target Audience: {{ $('Query Breakdown').item.json.choices[0].message.content[\"Target Audience\"] }}\n\nEssay Scope: {{ $('Query Breakdown').item.json.choices[0].message.content.Scope }}",
+          "options": {
+            "systemMessage": "=**Important:** The agent is still instructed to write the final output in Vietnamese, even though the instructions are in English.\n\n## Overview\n\nYou are an AI agent responsible for delivering the final content of sections for a persuasive analytical essay. Your role is to produce comprehensive, well-researched, and highly persuasive content based on provided inputs. The output should be a detailed exposition suitable for the target audience.\n\n## Context\n\n-   All necessary details, including the section title, descriptions, and target audience (e.g., general readers, students, experts), will be provided.\n-   The goal is to create content that aligns with the objectives of the persuasive analytical essay, demonstrating a deep understanding of the subject matter and the ability to convince the reader.\n-   Content must be supported by credible research, with sources accurately and consistently cited using appropriate citation styles (e.g., APA, MLA, Chicago).\n\n## Instructions\n\n1.  Write the final content without including any introductory or concluding remarks about the writing process. The content should seamlessly integrate into the persuasive analytical essay.\n2.  Conduct thorough research using the Search tool, focusing on reputable news sources, specialized websites, and relevant academic studies to ensure accuracy and relevance.\n3.  Use the provided inputs to craft a focused section that is logically structured and presents a clear argument.\n4.  Cite sources meticulously within the content using a consistent citation style (e.g., APA, MLA, Chicago) and provide a complete bibliography at the end of the document.\n5.  Aim for a substantial word count (e.g., 500-600 words per section) to allow for in-depth analysis and discussion.\n6.  Write in Vietnamese.\n\n## Tools\n\n- Perplexity (for research and citations).\n\n## Citation Guidelines\n\n- Use the Perplexity tool to gather information and cite sources, prioritizing peer-reviewed academic literature and reputable news outlets.\n- For each major claim or piece of information, include a hyperlinked inline citation\n- Format citations as HTML links with descriptive text:\n  <a href=\"[URL]\">[Source: Publication Name]</a>\n- When directly quoting from a source, use quotation marks and include the citation\n\n## Examples\n\n- **Input**:  \n  - Section Title: \"The Psychology of Happy Patients\"  \n  - Description: Discuss strategies dental offices can use to improve patient experiences and satisfaction, such as personalized care and stress-reducing techniques.  \n  - Target Audience: Dentists and dental practice managers.  \n  - Tone: Informative yet approachable.  \n- **Output**:  \n  \"Creating a positive patient experience starts with understanding the key drivers of satisfaction in dental care. Personalized care, such as addressing individual patient concerns and tailoring treatments, can significantly boost trust and comfort [Source](https://example.com/personalized-care). Stress-reducing techniques, like offering noise-canceling headphones or aromatherapy in waiting rooms, have also been shown to alleviate anxiety and improve overall impressions of care [Source](https://example.com/stress-reduction). By focusing on these elements, dental practices can foster happier, more loyal patients.\"  \n\n## SOP (Standard Operating Procedure)\n\n1.  **Input Analysis**: Thoroughly understand the section's title, subsections, descriptions, and target audience, paying close attention to the essay's central arguments and scope.\n2.  **Research**: Use the Tavily tool to conduct comprehensive research, focusing on reputable news sources, specialized websites, and relevant academic studies.\n3.  **Content Writing**: Craft a section that adheres to persuasive writing standards, demonstrating a deep understanding of the subject matter and addressing the essay's central arguments. The content should be well-structured, logically organized, and supported by evidence.\n4.  **Cite Sources**: Meticulously integrate in-text citations in the appropriate style (e.g., APA, MLA, Chicago) and provide a complete \"References\" section at the end of the document.\n5.  **Review and Deliver**: Proofread the content to ensure clarity, accuracy, coherence, and adherence to relevant writing conventions. Verify that all sources are correctly cited and formatted.\n\n## Final Notes\n\n-   The output must start directly with the content, without introductory or transitional phrases.\n-   All sources must be accurately and consistently cited, adhering to the specified citation style.\n-   Focus on delivering content that is persuasive and valuable, meaningfully contributing to the persuasive analytical essay and demonstrating a deep understanding of the subject matter.\n\n**Important:** The agent is still instructed to write the final output in Vietnamese, even though the instructions are in English."
+          }
+        },
+        "type": "@n8n/n8n-nodes-langchain.agent",
+        "typeVersion": 1.7,
+        "position": [
+          -340,
+          800
+        ],
+        "id": "a67a46e6-6a1e-4e31-b282-bc81e6345435",
+        "name": "Researcher"
+      },
+      {
+        "parameters": {
+          "authentication": "oAuth2",
+          "resource": "file",
+          "owner": {
+            "__rl": true,
+            "value": "phuc-nt",
+            "mode": "name"
+          },
+          "repository": {
+            "__rl": true,
+            "value": "n8n-deep-research",
+            "mode": "list",
+            "cachedResultName": "n8n-deep-research",
+            "cachedResultUrl": "https://github.com/phuc-nt/n8n-deep-research"
+          },
+          "filePath": "={{ $json.message.content }}.md",
+          "fileContent": "={{ $('Editor').item.json.output }}",
+          "commitMessage": "=Create post: {{ $json.message.content }}"
+        },
+        "type": "n8n-nodes-base.github",
+        "typeVersion": 1,
+        "position": [
+          320,
+          1120
+        ],
+        "id": "9c039d8c-066a-4f84-bcf7-7974806082a6",
+        "name": "Save to GitHub",
+        "credentials": {
+          "githubOAuth2Api": {
+            "id": "Ws7qZUVLd7oDzoxg",
+            "name": "GitHub account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+          "text": "=Đã viết bài research xong: {{ $json.content.html_url }}",
+          "additionalFields": {}
+        },
+        "type": "n8n-nodes-base.telegram",
+        "typeVersion": 1.2,
+        "position": [
+          480,
+          1120
+        ],
+        "id": "56560970-56f2-46e0-bbe7-1d1fdd63b5b5",
+        "name": "Result Report",
+        "webhookId": "4f2647a7-a334-4309-a6c7-4898b3726f69",
+        "credentials": {
+          "telegramApi": {
+            "id": "3ngRh2HDXChgGMYa",
+            "name": "Telegram Deep Research Bot"
+          }
+        }
+      }
+    ],
+    "pinData": {
+      "Telegram Trigger": [
+        {
+          "json": {
+            "update_id": 8117149,
+            "message": {
+              "message_id": 120,
+              "from": {
+                "id": 5248565986,
+                "is_bot": false,
+                "first_name": "Phúc",
+                "last_name": "Nguyễn",
+                "username": "phucnt",
+                "language_code": "en"
+              },
+              "chat": {
+                "id": 5248565986,
+                "first_name": "Phúc",
+                "last_name": "Nguyễn",
+                "username": "phucnt",
+                "type": "private"
+              },
+              "date": 1739587629,
+              "text": "Conduct a comprehensive literature review for: \n- Learning Process Components\n﻿﻿- Attention and Perception\n﻿﻿- Memory Systems\n﻿﻿- Knowledge Organization\n﻿﻿- Metacognition\n﻿﻿- Transfer Mechanisms"
+            }
+          }
+        }
+      ]
+    },
+    "connections": {
+      "OpenAI Chat Model": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "Outline Creator",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Split Out": {
+        "main": [
+          [
+            {
+              "node": "Merge",
+              "type": "main",
+              "index": 1
+            },
+            {
+              "node": "Researcher",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Anthropic Chat Model": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "Researcher",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Merge": {
+        "main": [
+          [
+            {
+              "node": "Aggregate",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Aggregate": {
+        "main": [
+          [
+            {
+              "node": "Editor",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Create TItle": {
+        "main": [
+          [
+            {
+              "node": "Save to GitHub",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Telegram Trigger": {
+        "main": [
+          [
+            {
+              "node": "Query Breakdown",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Editor": {
+        "main": [
+          [
+            {
+              "node": "Create TItle",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "OpenAI Chat Model1": {
+        "ai_languageModel": [
+          [
+            {
+              "node": "Editor",
+              "type": "ai_languageModel",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Perplexity": {
+        "ai_tool": [
+          [
+            {
+              "node": "Outline Creator",
+              "type": "ai_tool",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Perplexity1": {
+        "ai_tool": [
+          [
+            {
+              "node": "Researcher",
+              "type": "ai_tool",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Query Breakdown": {
+        "main": [
+          [
+            {
+              "node": "Outline Creator",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Task Planning": {
+        "main": [
+          [
+            {
+              "node": "Split Out",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Outline Creator": {
+        "main": [
+          [
+            {
+              "node": "Task Planning",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Researcher": {
+        "main": [
+          [
+            {
+              "node": "Merge",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Save to GitHub": {
+        "main": [
+          [
+            {
+              "node": "Result Report",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "active": false,
+    "settings": {
+      "executionOrder": "v1"
+    },
+    "versionId": "95d1666e-d999-4d12-a69c-efac5230d429",
+    "meta": {
+      "templateCredsSetupCompleted": true,
+      "instanceId": "3c1fef405c098efa65ff2462b365b31f3a7086bd8e6f1c96923bc5e2717fbfc1"
+    },
+    "id": "EfXpl0Z0V9dI8aNm",
+    "tags": []
+  }
