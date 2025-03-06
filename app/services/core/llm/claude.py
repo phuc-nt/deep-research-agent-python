@@ -1,24 +1,28 @@
 from typing import Any, Dict, Optional
 from anthropic import AsyncAnthropic
 
-from app.services.llm.base import BaseLLMService
+from app.services.core.llm.base import BaseLLMService
 from app.core.config import get_settings
 
-settings = get_settings()
 
 class ClaudeService(BaseLLMService):
-    """Claude service implementation"""
-    
+    """Claude LLM service implementation"""
+
     def __init__(self):
+        """Initialize Claude service"""
+        settings = get_settings()
         self.client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
         self.model = settings.MODEL_NAME
-        
-    async def generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
-        """Generate text from prompt using Claude"""
+        self.max_tokens = settings.MAX_TOKENS
+        self.temperature = settings.TEMPERATURE
+
+    async def generate(self, prompt: str) -> str:
+        """Generate text using Claude"""
         response = await self.client.messages.create(
             model=self.model,
-            messages=[{"role": "user", "content": prompt}],
-            **kwargs
+            max_tokens=self.max_tokens,
+            temperature=self.temperature,
+            messages=[{"role": "user", "content": prompt}]
         )
         return response.content[0].text
         

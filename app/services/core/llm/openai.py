@@ -1,25 +1,28 @@
 from typing import Any, Dict, Optional
 from openai import AsyncOpenAI
 
-from app.services.llm.base import BaseLLMService
+from app.services.core.llm.base import BaseLLMService
 from app.core.config import get_settings
 
 settings = get_settings()
 
 class OpenAIService(BaseLLMService):
-    """OpenAI service implementation"""
-    
+    """OpenAI LLM service implementation"""
+
     def __init__(self):
-        super().__init__()
+        """Initialize OpenAI service"""
         self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
         self.model = settings.MODEL_NAME
+        self.max_tokens = settings.MAX_TOKENS
+        self.temperature = settings.TEMPERATURE
         
-    async def generate(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
-        """Generate text from prompt using OpenAI"""
+    async def generate(self, prompt: str) -> str:
+        """Generate text using OpenAI"""
         response = await self.client.chat.completions.create(
             model=self.model,
-            messages=[{"role": "user", "content": prompt}],
-            **kwargs
+            max_tokens=self.max_tokens,
+            temperature=self.temperature,
+            messages=[{"role": "user", "content": prompt}]
         )
         return response.choices[0].message.content
         

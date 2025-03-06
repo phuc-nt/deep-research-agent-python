@@ -1,15 +1,15 @@
 from typing import Type
 
-from app.services.llm.base import BaseLLMService
-from app.services.search.base import BaseSearchService
-from app.services.storage.base import BaseStorageService
+from app.services.core.llm.base import BaseLLMService
+from app.services.core.search.base import BaseSearchService
+from app.services.core.storage.base import BaseStorageService
 
 # These will be implemented later
-from app.services.llm.openai import OpenAIService
-from app.services.llm.claude import ClaudeService
-from app.services.search.perplexity import PerplexityService
-from app.services.search.google import GoogleService
-from app.services.storage.github import GitHubService
+from app.services.core.llm.openai import OpenAIService
+from app.services.core.llm.claude import ClaudeService
+from app.services.core.search.perplexity import PerplexityService
+from app.services.core.search.google import GoogleService
+from app.services.core.storage.github import GitHubService
 
 from .config import get_settings
 from .exceptions import ConfigError

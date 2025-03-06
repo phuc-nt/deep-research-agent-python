@@ -1,69 +1,61 @@
 import pytest
 from unittest.mock import patch, MagicMock
 
-from app.core.factory import ServiceFactory, ConfigError
-from app.services.llm.base import BaseLLMService
-from app.services.search.base import BaseSearchService
-from app.services.storage.base import BaseStorageService
+from app.core.exceptions import ConfigError
+from app.services.core.llm.base import BaseLLMService
+from app.services.core.search.base import BaseSearchService
+from app.services.core.storage.base import BaseStorageService
+from app.core.factory import ServiceFactory, service_factory
 
 def test_create_llm_service():
-    """Test LLM service creation"""
-    factory = ServiceFactory()
-    
+    """Test creating LLM services"""
     # Test OpenAI service
-    with patch("app.services.llm.openai.AsyncOpenAI"):
-        openai_service = factory.create_llm_service("openai")
-        assert isinstance(openai_service, BaseLLMService)
-    
+    openai_service = ServiceFactory.create_llm_service("openai")
+    assert isinstance(openai_service, BaseLLMService)
+
     # Test Claude service
-    with patch("app.services.llm.claude.AsyncAnthropic"):
-        claude_service = factory.create_llm_service("claude")
-        assert isinstance(claude_service, BaseLLMService)
-    
+    claude_service = ServiceFactory.create_llm_service("claude")
+    assert isinstance(claude_service, BaseLLMService)
+
     # Test invalid provider
     with pytest.raises(ConfigError):
-        factory.create_llm_service("invalid")
+        ServiceFactory.create_llm_service("invalid")
 
 def test_create_search_service():
-    """Test search service creation"""
-    factory = ServiceFactory()
-    
+    """Test creating search services"""
     # Test Perplexity service
-    with patch("app.services.search.perplexity.httpx.AsyncClient"):
-        perplexity_service = factory.create_search_service("perplexity")
-        assert isinstance(perplexity_service, BaseSearchService)
-    
-    # Test Google service
-    with patch("app.services.search.google.build"):
-        google_service = factory.create_search_service("google")
-        assert isinstance(google_service, BaseSearchService)
-    
-    # Test invalid provider
-    with pytest.raises(ConfigError):
-        factory.create_search_service("invalid")
+    perplexity_service = ServiceFactory.create_search_service("perplexity")
+    assert isinstance(perplexity_service, BaseSearchService)
 
-def test_create_storage_service():
-    """Test storage service creation"""
-    factory = ServiceFactory()
-    
-    # Test GitHub service
-    with patch("app.services.storage.github.Github"):
-        github_service = factory.create_storage_service("github")
-        assert isinstance(github_service, BaseStorageService)
-    
+    # Test Google service
+    google_service = ServiceFactory.create_search_service("google")
+    assert isinstance(google_service, BaseSearchService)
+
     # Test invalid provider
     with pytest.raises(ConfigError):
-        factory.create_storage_service("invalid")
+        ServiceFactory.create_search_service("invalid")
+
+@patch('app.services.core.storage.github.Github')
+def test_create_storage_service(mock_github):
+    """Test creating storage services"""
+    # Mock GitHub client and repository
+    mock_repo = MagicMock()
+    mock_github.return_value.get_repo.return_value = mock_repo
+
+    # Test GitHub service
+    github_service = ServiceFactory.create_storage_service("github")
+    assert isinstance(github_service, BaseStorageService)
+
+    # Test invalid provider
+    with pytest.raises(ConfigError):
+        ServiceFactory.create_storage_service("invalid")
 
 def test_singleton_factory():
     """Test singleton factory instance"""
-    from app.core.factory import service_factory
-    
+    # Test that multiple instances are different
     factory1 = ServiceFactory()
     factory2 = ServiceFactory()
-    
-    # Different instances should be different
     assert factory1 is not factory2
-    
-    # But singleton instance should be the same
+
+    # Test that singleton instance is the same
     assert service_factory is service_factory 

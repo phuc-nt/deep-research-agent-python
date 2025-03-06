@@ -1,5 +1,6 @@
 from typing import Dict, Any
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from dataclasses import dataclass
 
 
 class Settings(BaseSettings):
@@ -9,7 +10,7 @@ class Settings(BaseSettings):
     API_VERSION: str = "v1"
     
     # Environment
-    ENVIRONMENT: str = "development"
+    ENVIRONMENT: str = "test"
     DEBUG: bool = True
     
     # API Keys
@@ -17,7 +18,7 @@ class Settings(BaseSettings):
     ANTHROPIC_API_KEY: str = "your_anthropic_api_key"
     PERPLEXITY_API_KEY: str = "your_perplexity_api_key"
     GOOGLE_API_KEY: str = "your_google_api_key"
-    GOOGLE_CX: str = "your_google_cx"
+    GOOGLE_CSE_ID: str = "your_google_cse_id"
     GITHUB_ACCESS_TOKEN: str = "your_github_token"
     GITHUB_USERNAME: str = "your_github_username"
     GITHUB_REPO: str = "your_github_repo"
@@ -25,51 +26,42 @@ class Settings(BaseSettings):
     # LLM settings
     DEFAULT_LLM_PROVIDER: str = "openai"
     MODEL_NAME: str = "gpt-4"
-    MAX_TOKENS: int = 2000
+    MAX_TOKENS: int = 4000
     TEMPERATURE: float = 0.7
     
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
 
+@dataclass
 class PreparePrompts:
     """Prompts for prepare phase"""
-    
-    ANALYZE_QUERY = """
-    Analyze the following query and extract key information:
+    ANALYZE_QUERY: str = """
+    Analyze the following research query:
     {query}
     """
-    
-    GENERATE_PLAN = """
-    Generate a research plan for:
+
+    CREATE_OUTLINE: str = """
+    Create an outline for the following research query:
     {query}
     """
 
 
+@dataclass
 class ResearchPrompts:
     """Prompts for research phase"""
-    
-    SEARCH_QUERY = """
-    Generate a search query for:
-    {query}
-    """
-    
-    ANALYZE_RESULTS = """
-    Analyze these search results:
-    {results}
+    RESEARCH_SECTION: str = """
+    Research the following section:
+    Query: {query}
+    Section: {section}
     """
 
 
+@dataclass
 class EditPrompts:
     """Prompts for edit phase"""
-    
-    GENERATE_EDIT = """
-    Generate edits for:
+    EDIT_CONTENT: str = """
+    Edit the following content:
     {content}
-    """
-    
-    REVIEW_EDIT = """
-    Review these edits:
-    {edits}
     """
 
 
@@ -81,20 +73,20 @@ _edit_prompts = EditPrompts()
 
 
 def get_settings() -> Settings:
-    """Get settings instance"""
+    """Get application settings"""
     return _settings
 
 
 def get_prepare_prompts() -> PreparePrompts:
-    """Get prepare prompts instance"""
+    """Get prepare phase prompts"""
     return _prepare_prompts
 
 
 def get_research_prompts() -> ResearchPrompts:
-    """Get research prompts instance"""
+    """Get research phase prompts"""
     return _research_prompts
 
 
 def get_edit_prompts() -> EditPrompts:
-    """Get edit prompts instance"""
+    """Get edit phase prompts"""
     return _edit_prompts

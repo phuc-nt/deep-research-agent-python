@@ -1,26 +1,20 @@
 # Deep Research Agent
 
-Một dịch vụ API tự động hóa nghiên cứu sử dụng AI (OpenAI GPT-4 và Claude) để tạo ra các bài nghiên cứu chuyên sâu.
+Một agent thông minh giúp thực hiện nghiên cứu chuyên sâu và tạo ra các bài viết phân tích chất lượng cao.
 
-## Tổng quan
+## Tính năng
 
-Deep Research Agent là một hệ thống tự động hóa quy trình nghiên cứu học thuật, sử dụng sức mạnh của các Large Language Models (LLMs) và công cụ tìm kiếm thông minh. Hệ thống được thiết kế để:
+- Phân tích yêu cầu nghiên cứu để xác định chủ đề, phạm vi và đối tượng đọc
+- Tạo dàn ý chi tiết cho bài nghiên cứu
+- Thực hiện nghiên cứu chuyên sâu cho từng phần của bài viết
+- Tổng hợp và chỉnh sửa nội dung thành bài viết hoàn chỉnh
+- Hỗ trợ lưu trữ và quản lý nội dung trên GitHub
 
-1. **Phân tích yêu cầu** - Hiểu sâu về chủ đề, phạm vi và đối tượng độc giả
-2. **Tạo dàn ý thông minh** - Xây dựng cấu trúc logic cho bài nghiên cứu
-3. **Nghiên cứu chuyên sâu** - Thu thập và phân tích thông tin từ nhiều nguồn
-4. **Biên tập chuyên nghiệp** - Tổng hợp và trình bày nội dung một cách mạch lạc
-5. **Quản lý tài liệu tham khảo** - Tự động trích dẫn và tạo danh mục tài liệu
-
-## Kiến trúc
-
-### Sequence Diagram
+## Quy trình hoạt động
 
 ```mermaid
 sequenceDiagram
     participant C as Client
-    participant A as API
-    participant O as Orchestrator
     participant P as PrepareService
     participant R as ResearchService
     participant E as EditService
@@ -28,224 +22,92 @@ sequenceDiagram
     participant S as SearchService
     participant G as GitHubStorage
 
-    C->>A: POST /api/v1/research
-    A->>O: Create Research Task
-    O->>C: 202 Accepted (task_id)
+    C->>P: Create Research Request
     
     %% Prepare Phase
-    O->>P: Analyze Query
     activate P
-    P->>LLM: Generate Analysis
+    P->>LLM: Analyze Query
     LLM-->>P: Query Analysis
     P->>S: Search Overview Info
     S-->>P: Search Results
     P->>LLM: Create Outline
     LLM-->>P: Research Outline
-    P-->>O: Analysis & Outline
+    P-->>C: Analysis & Outline
     deactivate P
     
     %% Research Phase
+    C->>R: Research Request + Outline
+    activate R
     loop Each Section
-        O->>R: Research Section
-        activate R
         R->>S: Deep Search
         S-->>R: Detailed Results
         R->>LLM: Analyze & Synthesize
         LLM-->>R: Section Content
-        R-->>O: Section Complete
-        deactivate R
     end
+    R-->>C: Research Sections
+    deactivate R
     
     %% Edit Phase
-    O->>E: Edit Content
+    C->>E: Research Request + Sections
     activate E
     E->>LLM: Edit & Format
     LLM-->>E: Edited Content
     E->>LLM: Generate Title
     LLM-->>E: Final Title
-    E-->>O: Final Content
+    E->>G: Save Content
+    G-->>E: GitHub URL
+    E-->>C: Final Content + URL
     deactivate E
-    
-    %% Storage Phase
-    O->>G: Save Research
-    G-->>O: GitHub URL
-    
-    %% Complete
-    O->>A: Update Status
-    A->>C: Complete (github_url)
-
-    %% Status Check (parallel flow)
-    C->>A: GET /api/v1/research/{id}
-    A->>O: Get Status
-    O-->>A: Current Status
-    A-->>C: Research Status
 ```
 
-### Core Components
+## Cấu trúc dự án
 
-1. **Prepare Service**
-   - Query Analysis
-   - Outline Creation
-   - Research Planning
-
-2. **Research Service**
-   - Deep Research
-   - Information Gathering
-   - Source Verification
-
-3. **Edit Service**
-   - Content Editing
-   - Title Creation
-   - Citation Management
-
-### Supporting Services
-
-1. **LLM Services**
-   - OpenAI GPT-4
-   - Anthropic Claude
-
-2. **Search Services**
-   - Perplexity
-   - Google Search
-
-3. **Storage Service**
-   - GitHub Integration
-
-## API Endpoints
-
-### POST /api/v1/research
-Tạo một nghiên cứu mới
-
-```json
-Request:
-{
-    "topic": "Chủ đề nghiên cứu",
-    "scope": "Phạm vi nghiên cứu",
-    "target_audience": "Đối tượng độc giả"
-}
-
-Response:
-{
-    "id": "research_id",
-    "status": "pending",
-    "github_url": null,
-    "created_at": "2024-03-05T10:00:00Z",
-    "updated_at": "2024-03-05T10:00:00Z"
-}
 ```
-
-### GET /api/v1/research/{research_id}
-Kiểm tra trạng thái nghiên cứu
-
-```json
-Response:
-{
-    "id": "research_id",
-    "status": "completed",
-    "github_url": "https://github.com/username/repo/blob/main/research.md",
-    "created_at": "2024-03-05T10:00:00Z",
-    "updated_at": "2024-03-05T10:30:00Z"
-}
+app/
+├── services/
+│   ├── core/                  # Các dịch vụ cơ bản
+│   │   ├── llm/              # Dịch vụ xử lý ngôn ngữ
+│   │   │   ├── base.py
+│   │   │   ├── openai.py     # OpenAI service
+│   │   │   └── claude.py     # Claude service
+│   │   ├── search/           # Dịch vụ tìm kiếm
+│   │   │   ├── base.py
+│   │   │   ├── google.py     # Google search
+│   │   │   └── perplexity.py # Perplexity search
+│   │   └── storage/          # Dịch vụ lưu trữ
+│   │       ├── base.py
+│   │       └── github.py     # GitHub storage
+│   ├── research/             # Các dịch vụ nghiệp vụ
+│   │   ├── base.py          # Base classes
+│   │   ├── prepare.py       # Chuẩn bị nghiên cứu
+│   │   ├── research.py      # Thực hiện nghiên cứu
+│   │   └── edit.py          # Chỉnh sửa nội dung
+│   └── __init__.py
 ```
 
 ## Cài đặt
 
-### Yêu cầu
-- Python 3.11+
-- Docker và Docker Compose
-- API keys:
-  - OpenAI API key
-  - Anthropic API key
-  - GitHub Access Token
+Coming soon...
 
-### Cài đặt với Docker
+## Sử dụng
 
-1. Clone repository:
+Coming soon...
+
+## Testing
+
+Chạy tests:
 ```bash
-git clone https://github.com/yourusername/deep-research-agent-python.git
-cd deep-research-agent-python
+pytest tests/ -v
 ```
-
-2. Tạo file .env:
-```bash
-cp .env.example .env
-# Cập nhật các biến môi trường trong .env
-```
-
-3. Build và chạy với Docker:
-```bash
-docker compose up --build
-```
-
-### Cài đặt cho Development
-
-1. Tạo virtual environment:
-```bash
-python -m venv venv
-source venv/bin/activate  # Linux/macOS
-# hoặc
-.\venv\Scripts\activate  # Windows
-```
-
-2. Cài đặt dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-3. Chạy development server:
-```bash
-python run.py
-```
-
-## Development
-
-### Cấu trúc Project
-```
-deep-research-agent-python/
-├── app/
-│   ├── api/          # FastAPI routes và endpoints
-│   ├── core/         # Core configuration và utilities
-│   ├── models/       # Pydantic models
-│   ├── services/     # Business logic services
-│   └── utils/        # Helper functions
-├── tests/            # Unit và integration tests
-└── docs/            # Documentation
-```
-
-### Testing
-```bash
-# Chạy unit tests
-pytest
-
-# Chạy với coverage
-pytest --cov=app tests/
-```
-
-### Code Style
-```bash
-# Format code
-black .
-
-# Sort imports
-isort .
-
-# Type checking
-mypy .
-```
-
-## Documentation
-
-- API Documentation: [docs/api.md](docs/api.md)
-- Development Guide: [docs/development.md](docs/development.md)
 
 ## Contributing
 
 1. Fork repository
-2. Tạo feature branch
-3. Commit changes
-4. Push to branch
+2. Tạo branch mới (`git checkout -b feature/your-feature`)
+3. Commit thay đổi (`git commit -am 'Add new feature'`)
+4. Push lên branch (`git push origin feature/your-feature`)
 5. Tạo Pull Request
 
 ## License
 
-MIT License
+MIT License - xem [LICENSE](LICENSE) để biết thêm chi tiết.

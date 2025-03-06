@@ -1,13 +1,19 @@
-fastapi==0.104.1
-uvicorn==0.24.0
-python-dotenv==1.0.0
-anthropic==0.5.0
-openai==1.3.0
-pydantic==2.4.2
-httpx==0.25.1
-python-multipart==0.0.6
-PyGithub==2.1.1
-pytest==7.4.3
-black==23.11.0
-isort==5.12.0
-mypy==1.7.0
+# Core
+pydantic==2.6.3
+pydantic-settings==2.2.1
+
+# LLM Services
+openai==1.12.0
+anthropic==0.18.1
+
+# Search Services
+google-api-python-client==2.122.0
+httpx==0.27.0
+
+# Storage Services
+PyGithub==2.2.0
+
+# Testing
+pytest==8.0.2
+pytest-asyncio==0.23.5
+pytest-cov==4.1.0
