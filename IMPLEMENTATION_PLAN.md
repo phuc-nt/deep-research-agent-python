@@ -37,30 +37,35 @@
 
 ## Phase 2: Research Service 🚧
 
-### 2.1 Research Workflow Design
-- [ ] Define research process steps
-- [ ] Create workflow diagrams
-- [ ] Document API specifications
+### 2.1 Research Workflow Design ✅
+- [x] Define research process steps
+- [x] Create workflow diagrams
+- [x] Document API specifications
 
-### 2.2 Core Research Components
-- [ ] Implement PrepareService
-- [ ] Implement ResearchService
-- [ ] Implement EditService
+### 2.2 Core Research Components 🚧
+- [x] Implement base classes and models (`app/services/research/base.py`)
+- [x] Implement PrepareService (`app/services/research/prepare.py`)
+- [x] Add unit tests for PrepareService
+- [ ] Implement ResearchService (`app/services/research/research.py`)
+- [ ] Implement EditService (`app/services/research/edit.py`)
 - [ ] Add result validation
 
-### 2.3 Integration
-- [ ] Integrate with LLM services
-- [ ] Integrate with search services
-- [ ] Integrate with storage services
+### 2.3 Integration 🚧
+- [x] Integrate with LLM services
+- [x] Integrate with search services
+- [x] Integrate with storage services
 - [ ] Add error handling and retries
 
-### 2.4 Testing
-- [ ] Unit tests for each component
+### 2.4 Testing 🚧
+- [x] Unit tests for base components
+- [x] Unit tests for PrepareService
+- [ ] Unit tests for ResearchService
+- [ ] Unit tests for EditService
 - [ ] Integration tests
 - [ ] Performance testing
 - [ ] Error handling tests
 
-## Phase 3: API Layer
+## Phase 3: API Layer ⏳
 
 ### 3.1 API Design
 - [ ] Define API endpoints
@@ -88,75 +93,81 @@
 
 ## Current Status
 - Phase 1 (Core Components) ✅ COMPLETED
-- Phase 2 (Research Service) 🚧 IN PROGRESS
+- Phase 2 (Research Service) 🚧 IN PROGRESS (60%)
 - Phase 3 (API Layer) ⏳ PENDING
 
-## Ngày 1 ✅ (05/03/2024)
-1. ✅ Tạo cấu trúc project cơ bản
-2. ✅ Setup Docker và environment
-3. ✅ Implement các models cơ bản (`app/models/research.py`)
-4. ✅ Implement base services (`app/services/base/`)
-5. ✅ Setup FastAPI với basic endpoints
-6. ✅ Test được API hoạt động
-7. ✅ Push to GitHub
+## Tiến độ chi tiết theo ngày
 
-## Ngày 2 (06/03/2024)
-1. Core Configuration & Services
-   - [ ] `app/core/config.py` - Environment và app configuration
-   - [ ] `app/core/exceptions.py` - Custom exceptions
-   - [ ] `app/core/factory.py` - Service factory pattern
+### Ngày 05/03/2024 ✅
+1. Khởi tạo dự án:
+   - [x] Tạo cấu trúc project cơ bản
+   - [x] Setup Docker và environment
+   - [x] Implement các models cơ bản
+   - [x] Implement base services
+   - [x] Setup FastAPI với basic endpoints
+   - [x] Test được API hoạt động
+   - [x] Push to GitHub
 
-2. LLM Services
-   - [ ] `app/services/llm/openai.py`
-     - [ ] Class structure
-     - [ ] API integration
-     - [ ] Error handling
-     - [ ] Unit tests
-   - [ ] `app/services/llm/claude.py`
-     - [ ] Class structure
-     - [ ] API integration
-     - [ ] Error handling
-     - [ ] Unit tests
+### Ngày 06/03/2024 ✅
+1. Core Configuration & Services:
+   - [x] `app/core/config.py` - Environment và app configuration
+   - [x] `app/core/exceptions.py` - Custom exceptions
+   - [x] `app/core/factory.py` - Service factory pattern
 
-## Ngày 3
-1. Search & Storage Services
-   - [ ] `app/services/search/perplexity.py`
-   - [ ] `app/services/search/google.py`
-   - [ ] `app/services/storage/github.py`
-   - [ ] Unit tests cho search và storage services
+2. Core Services Implementation:
+   - [x] `app/services/core/llm/openai.py`
+   - [x] `app/services/core/llm/claude.py`
+   - [x] `app/services/core/search/perplexity.py`
+   - [x] `app/services/core/search/google.py`
+   - [x] `app/services/core/storage/github.py`
 
-## Ngày 4
-1. Prepare Service
-   - [ ] `app/services/prepare/service.py`
-     - [ ] Query analysis
-     - [ ] Outline creation
-   - [ ] `app/services/prepare/prompts.py`
-   - [ ] Unit tests
+### Ngày 07/03/2024 ✅
+1. Research Service Base:
+   - [x] Thiết kế cấu trúc research workflow
+   - [x] `app/services/research/base.py`
+   - [x] Unit tests cho base components
 
-## Ngày 5
-1. Research Service
-   - [ ] `app/services/research/service.py`
+### Ngày 08/03/2024 ✅
+1. Cập nhật cấu trúc project:
+   - [x] Di chuyển các services cơ bản vào `app/services/core/`
+   - [x] Tạo thư mục `app/services/research/` cho các services nghiên cứu
+   - [x] Xóa các thư mục không cần thiết
+
+2. Triển khai PrepareService:
+   - [x] Implement `app/services/research/base.py`
+     - [x] Định nghĩa các models cơ bản
+     - [x] Tạo base classes cho research workflow
+   - [x] Implement `app/services/research/prepare.py`
+     - [x] Query analysis
+     - [x] Outline creation
+   - [x] Viết unit tests cho PrepareService
+   - [x] Code review và refactoring
+
+### Ngày 09/03/2024 🚧
+1. Triển khai ResearchService:
+   - [ ] Implement `app/services/research/research.py`
      - [ ] Deep research implementation
      - [ ] Section research logic
-   - [ ] `app/services/research/prompts.py`
-   - [ ] Unit tests
+   - [ ] Viết unit tests
+   - [ ] Code review và refactoring
 
-## Ngày 6
+### Kế hoạch cho các ngày tiếp theo
+
+#### Ngày 10/03/2024 ⏳
 1. Edit Service
-   - [ ] `app/services/edit/service.py`
+   - [ ] `app/services/research/edit.py`
      - [ ] Content editing
      - [ ] Title creation
-   - [ ] `app/services/edit/prompts.py`
    - [ ] Unit tests
+   - [ ] Code review và refactoring
 
-## Ngày 7
-1. Orchestration & Integration
-   - [ ] `app/services/orchestrator.py`
-   - [ ] Update API routes với orchestrator
+#### Ngày 11/03/2024 ⏳
+1. API Integration
+   - [ ] Update API routes
    - [ ] Integration tests
    - [ ] Documentation
 
-## Ngày 8
+#### Ngày 12/03/2024 ⏳
 1. Polish & Improvements
    - [ ] Logging system
    - [ ] Error handling improvements
