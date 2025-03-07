@@ -1,15 +1,22 @@
 import pytest
-from app.core.config import Settings, get_settings, get_prepare_prompts, get_research_prompts, get_edit_prompts
+from app.core.config import (
+    get_settings,
+    get_prepare_prompts,
+    get_research_prompts,
+    get_edit_prompts
+)
 
 def test_settings_default_values():
-    """Test default values in Settings"""
-    settings = Settings()
+    """Test if settings have correct default values"""
+    settings = get_settings()
+    
     assert settings.API_VERSION == "v1"
     assert settings.ENVIRONMENT == "test"
-    assert settings.DEBUG is True
+    assert settings.DEBUG == True
+    assert settings.DEFAULT_LLM_PROVIDER == "openai"
+    assert settings.MODEL_NAME == "gpt-4"
     assert settings.MAX_TOKENS == 4000
     assert settings.TEMPERATURE == 0.7
-    assert settings.MODEL_NAME == "gpt-4"
 
 def test_prompts_format():
     """Test if prompts can be formatted without errors"""
@@ -22,15 +29,19 @@ def test_prompts_format():
         query="Test Query"
     )
     assert "Test Query" in analysis_prompt
-
+    
     # Test ResearchPrompts
-    research_prompt = research_prompts.RESEARCH_SECTION.format(
-        query="Test Query",
-        section="Test Section"
+    search_prompt = research_prompts.SEARCH_QUERY.format(
+        topic="Test Topic",
+        scope="Test Scope",
+        section_title="Test Title",
+        section_description="Test Description"
     )
-    assert "Test Query" in research_prompt
-    assert "Test Section" in research_prompt
-
+    assert "Test Topic" in search_prompt
+    assert "Test Scope" in search_prompt
+    assert "Test Title" in search_prompt
+    assert "Test Description" in search_prompt
+    
     # Test EditPrompts
     edit_prompt = edit_prompts.EDIT_CONTENT.format(
         content="Test Content"

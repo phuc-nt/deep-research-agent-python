@@ -1,51 +1,57 @@
 import pytest
 from app.core.exceptions import (
-    ResearchException,
-    LLMServiceError,
+    BaseError,
+    ConfigError,
+    ServiceError,
+    LLMError,
     SearchError,
     StorageError,
-    ValidationError,
     PrepareError,
     ResearchError,
     EditError,
-    ConfigError
+    ValidationError
 )
 
 def test_base_exception():
-    """Test ResearchException base class"""
-    error_msg = "Test error"
-    error_details = {"key": "value"}
+    """Test base exception class"""
+    error = BaseError("Test error")
+    assert str(error) == "Test error"
+    assert error.message == "Test error"
+    assert error.details == {}
     
-    exc = ResearchException(error_msg, error_details)
-    assert str(exc) == error_msg
-    assert exc.message == error_msg
-    assert exc.details == error_details
+    error_with_details = BaseError(
+        "Test error",
+        details={"key": "value"}
+    )
+    assert error_with_details.details == {"key": "value"}
 
 def test_exceptions_inheritance():
-    """Test if all exceptions inherit from ResearchException"""
-    exceptions = [
-        LLMServiceError,
-        SearchError,
-        StorageError,
-        ValidationError,
-        PrepareError,
-        ResearchError,
-        EditError,
-        ConfigError
-    ]
+    """Test inheritance của các exceptions"""
+    # Service errors
+    assert issubclass(ServiceError, BaseError)
+    assert issubclass(LLMError, ServiceError)
+    assert issubclass(SearchError, ServiceError)
+    assert issubclass(StorageError, ServiceError)
+    assert issubclass(PrepareError, ServiceError)
+    assert issubclass(ResearchError, ServiceError)
+    assert issubclass(EditError, ServiceError)
     
-    for exc_class in exceptions:
-        exc = exc_class("Test")
-        assert isinstance(exc, ResearchException)
+    # Other errors
+    assert issubclass(ConfigError, BaseError)
+    assert issubclass(ValidationError, BaseError)
 
 def test_exception_with_details():
-    """Test exceptions with different types of details"""
+    """Test exception với details"""
     details = {
         "error_code": 500,
-        "service": "openai",
-        "params": {"model": "gpt-4"}
+        "service": "test_service",
+        "additional_info": "test info"
     }
     
-    exc = LLMServiceError("API Error", details)
-    assert exc.details == details
-    assert "API Error" in str(exc) 
+    error = ServiceError(
+        message="Test service error",
+        details=details
+    )
+    
+    assert error.message == "Test service error"
+    assert error.details == details 
