@@ -44,6 +44,12 @@ def test_prompts_format():
     
     # Test EditPrompts
     edit_prompt = edit_prompts.EDIT_CONTENT.format(
-        content="Test Content"
+        content="Test Content",
+        topic="Test Topic",
+        scope="Test Scope",
+        target_audience="Test Audience"
     )
-    assert "Test Content" in edit_prompt 
+    assert "Test Content" in edit_prompt
+    assert "Test Topic" in edit_prompt
+    assert "Test Scope" in edit_prompt
+    assert "Test Audience" in edit_prompt 

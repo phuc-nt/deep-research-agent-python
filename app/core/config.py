@@ -96,8 +96,25 @@ class ResearchPrompts:
 class EditPrompts:
     """Prompts for edit phase"""
     EDIT_CONTENT: str = """
-    Edit the following content:
+    Chỉnh sửa và hoàn thiện bài nghiên cứu sau:
+    
+    Chủ đề: {topic}
+    Phạm vi: {scope}
+    Đối tượng đọc: {target_audience}
+    
+    Nội dung bài nghiên cứu:
     {content}
+    
+    Yêu cầu:
+    1. Đảm bảo tính mạch lạc và liên kết giữa các phần
+    2. Thêm phần giới thiệu tổng quan ở đầu bài
+    3. Thêm phần kết luận tổng hợp ở cuối bài
+    4. Chỉnh sửa các lỗi ngữ pháp, chính tả
+    5. Đảm bảo văn phong nhất quán, phù hợp với đối tượng đọc
+    6. Giữ nguyên các trích dẫn nguồn
+    7. Viết bằng tiếng Việt
+    
+    Trả về nội dung đã chỉnh sửa hoàn chỉnh.
     """
 
 
