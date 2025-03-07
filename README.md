@@ -87,11 +87,90 @@ app/
 
 ## Cài đặt
 
-Coming soon...
+1. Clone repository:
+```bash
+git clone https://github.com/yourusername/deep-research-agent.git
+cd deep-research-agent
+```
+
+2. Cài đặt dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+3. Cấu hình environment variables:
+Tạo file `.env` với các biến môi trường sau:
+```
+# LLM Services
+OPENAI_API_KEY=your_openai_api_key
+ANTHROPIC_API_KEY=your_anthropic_api_key
+
+# Search Services
+PERPLEXITY_API_KEY=your_perplexity_api_key
+GOOGLE_API_KEY=your_google_api_key
+GOOGLE_CSE_ID=your_google_cse_id
+
+# Storage Services
+GITHUB_TOKEN=your_github_token
+GITHUB_USERNAME=your_github_username
+GITHUB_REPO=your_github_repo
+```
 
 ## Sử dụng
 
-Coming soon...
+### Chạy ứng dụng:
+```bash
+python run.py
+```
+
+### API Endpoints:
+
+1. Tạo yêu cầu nghiên cứu mới:
+```
+POST /research/create
+```
+Body:
+```json
+{
+  "query": "Chủ đề cần nghiên cứu",
+  "language": "vi"
+}
+```
+
+2. Kiểm tra trạng thái nghiên cứu:
+```
+GET /research/status/{task_id}
+```
+
+3. Lấy kết quả nghiên cứu:
+```
+GET /research/result/{task_id}
+```
+
+4. Chỉ thực hiện giai đoạn chỉnh sửa (sử dụng dữ liệu có sẵn):
+```
+POST /research/edit_only
+```
+Body:
+```json
+{
+  "task_id": "id_của_task_đã_có"
+}
+```
+
+### Ví dụ sử dụng với curl:
+```bash
+# Tạo yêu cầu nghiên cứu mới
+curl -X POST "http://localhost:8000/research/create" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "Sự phát triển của trí tuệ nhân tạo ở Việt Nam", "language": "vi"}'
+
+# Kiểm tra trạng thái
+curl -X GET "http://localhost:8000/research/status/your_task_id"
+
+# Lấy kết quả
+curl -X GET "http://localhost:8000/research/result/your_task_id"
+```
 
 ## Testing
 

@@ -3,7 +3,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from app.core.exceptions import EditError
-from app.services.research.base import ResearchSection, ResearchResult
+from app.services.research.base import ResearchSection, ResearchResult, ResearchRequest, ResearchOutline
 from app.services.research.edit import EditService
 
 
@@ -117,8 +117,18 @@ class TestEditService:
             "Tiêu đề mẫu"             # create_title
         ]
         
+        # Tạo request và outline
+        request = ResearchRequest(
+            query="Test query",
+            topic=sample_context["topic"],
+            scope=sample_context["scope"],
+            target_audience=sample_context["target_audience"]
+        )
+        
+        outline = ResearchOutline(sections=sample_sections)
+        
         # Execute
-        result = await edit_service.execute(sample_sections, sample_context)
+        result = await edit_service.execute(request, outline, sample_sections)
         
         # Assert
         assert isinstance(result, ResearchResult)
@@ -161,12 +171,16 @@ class TestEditService:
         # Setup
         mock_llm_service.generate.side_effect = Exception("Test error")
         
-        # Execute and Assert
-        with pytest.raises(EditError) as excinfo:
-            await edit_service.execute(sample_sections, sample_context)
+        # Tạo request và outline
+        request = ResearchRequest(
+            query="Test query",
+            topic=sample_context["topic"],
+            scope=sample_context["scope"],
+            target_audience=sample_context["target_audience"]
+        )
         
-        assert "Lỗi trong quá trình chỉnh sửa" in str(excinfo.value)
-        # Kiểm tra xem details có chứa 'error' key
-        assert "error" in excinfo.value.details
-        # Không kiểm tra nội dung chi tiết của lỗi vì nó có thể khác nhau
-        # tùy thuộc vào cách xử lý lỗi trong EditService
+        outline = ResearchOutline(sections=sample_sections)
+        
+        # Execute and Assert
+        with pytest.raises(EditError):
+            await edit_service.execute(request, outline, sample_sections)

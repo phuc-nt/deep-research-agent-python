@@ -48,6 +48,7 @@ class ResearchResponse(BaseModel):
     status: ResearchStatus = Field(..., description="Trạng thái hiện tại")
     request: ResearchRequest = Field(..., description="Yêu cầu nghiên cứu gốc")
     outline: Optional[ResearchOutline] = Field(None, description="Dàn ý nghiên cứu")
+    sections: Optional[List[ResearchSection]] = Field(None, description="Các phần đã nghiên cứu")
     result: Optional[ResearchResult] = Field(None, description="Kết quả nghiên cứu")
     error: Optional[ResearchError] = Field(None, description="Thông tin lỗi nếu có")
     github_url: Optional[str] = Field(None, description="URL của repository trên GitHub")
