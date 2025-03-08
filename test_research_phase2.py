@@ -173,7 +173,7 @@ async def main():
                 print(f"Trạng thái: {status}")
                 
                 # Nếu đã hoàn thành
-                if status == "completed":
+                if status.get("status") == "completed":
                     logger.info("Nghiên cứu đã hoàn thành!")
                     print("\n4. Nghiên cứu đã hoàn thành!")
                     
@@ -219,7 +219,7 @@ async def main():
                     logger.info("=== KẾT THÚC KIỂM TRA PHASE 2 - THÀNH CÔNG ===")
                     return True
                     
-                elif status == "failed":
+                elif status.get("status") == "failed":
                     logger.error("Nghiên cứu thất bại!")
                     print("\nNghiên cứu thất bại!")
                     
