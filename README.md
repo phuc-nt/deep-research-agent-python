@@ -42,7 +42,7 @@ graph TD
         Storage --> GitHub[GitHub Storage]
     end
     
-    subgraph "NghienCuuFlow"
+    subgraph "Research Flow"
         P1[B1: Phân tích yêu cầu] --> P2[B2: Tạo dàn ý]
         P2 --> P3[B3: Nghiên cứu từng phần]
         P3 --> P4[B4: Chỉnh sửa nội dung]
@@ -383,3 +383,47 @@ Hệ thống được cung cấp kèm theo các tài liệu chi tiết để gi�
 - [Sequence Diagrams](docs/sequence_diagrams.md) - Biểu đồ tuần tự mô tả luồng tương tác giữa các thành phần
 - [Mô hình dữ liệu](docs/api.md#mô-hình-dữ-liệu) - Chi tiết về cấu trúc dữ liệu được sử dụng
 - [Quy trình nghiên cứu](docs/api.md#quy-trình-nghiên-cứu-cải-tiến) - Mô tả chi tiết về quy trình hoạt động
+
+## Chạy với Docker
+
+Deep Research Agent có thể được chạy dễ dàng bằng Docker. Dưới đây là các bước để chạy ứng dụng trong container:
+
+### Yêu cầu
+- Docker và Docker Compose đã được cài đặt
+- API keys cho các dịch vụ (OpenAI, Anthropic, Google, GitHub)
+
+### Cài đặt và chạy
+
+1. **Sao chép file .env.example thành .env và cấu hình các biến môi trường:**
+   ```bash
+   cp .env.example .env
+   ```
+   Mở file .env và cập nhật các API keys và cấu hình khác.
+
+2. **Xây dựng và chạy container với Docker Compose:**
+   ```bash
+   docker-compose up -d
+   ```
+   Lệnh này sẽ xây dựng image và chạy container trong chế độ detached.
+
+3. **Kiểm tra logs:**
+   ```bash
+   docker-compose logs -f
+   ```
+
+4. **Dừng container:**
+   ```bash
+   docker-compose down
+   ```
+
+### Quản lý dữ liệu
+
+Dữ liệu nghiên cứu được lưu trữ trong thư mục `./data` trên máy host, được mount vào container. Điều này đảm bảo dữ liệu được giữ lại ngay cả khi container bị xóa.
+
+### Cấu hình nâng cao
+
+Bạn có thể điều chỉnh cấu hình trong file `docker-compose.yml` để phù hợp với nhu cầu của mình:
+
+- Thay đổi cổng: Chỉnh sửa `ports: - "8000:8000"` thành cổng mong muốn
+- Thay đổi biến môi trường: Cập nhật phần `environment` hoặc file `.env`
+- Thêm volumes: Cấu hình thêm volumes nếu cần

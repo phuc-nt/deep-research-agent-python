@@ -29,6 +29,19 @@ from app.core.logging import logger
 
 router = APIRouter()
 
+# Health check endpoint
+@router.get("/health", tags=["Health"])
+async def health_check():
+    """
+    Kiểm tra trạng thái hoạt động của API.
+    """
+    return {
+        "status": "ok",
+        "timestamp": datetime.now().isoformat(),
+        "service": "deep-research-agent",
+        "version": "1.0.0"
+    }
+
 # Lưu trữ tạm thời các research tasks (trong thực tế nên dùng database)
 research_tasks: Dict[str, ResearchResponse] = {}
 
