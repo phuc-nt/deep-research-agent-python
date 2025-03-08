@@ -45,7 +45,7 @@ async def main():
     
     # Dữ liệu yêu cầu nghiên cứu
     research_request = {
-        "query": "tại sao con gái thích tặng quà"
+        "query": "Bất công trong thu nhập ở Việt Nam."
     }
     
     logger.info(f"Tạo yêu cầu nghiên cứu: {research_request}")
@@ -75,13 +75,39 @@ async def main():
             print(f"\nLần kiểm tra {attempt + 1}/{max_attempts}")
             
             try:
-                # Kiểm tra trạng thái
-                status_response = requests.get(f"{BASE_URL}/research/{research_id}/status")
-                status_response.raise_for_status()
-                status = status_response.json()
+                # Kiểm tra tiến độ chi tiết
+                progress_response = requests.get(f"{BASE_URL}/research/{research_id}/progress")
+                progress_response.raise_for_status()
+                progress_data = progress_response.json()
                 
+                status = progress_data.get("status")
+                progress_info = progress_data.get("progress_info", {})
+                
+                # Hiển thị thông tin tiến độ chi tiết
                 logger.info(f"Trạng thái: {status}")
+                logger.info(f"Thông tin tiến độ: {json.dumps(progress_info, ensure_ascii=False)}")
+                
                 print(f"Trạng thái: {status}")
+                print(f"Giai đoạn: {progress_info.get('phase', 'N/A')}")
+                print(f"Thông điệp: {progress_info.get('message', 'N/A')}")
+                
+                # Hiển thị thông tin thời gian
+                if "elapsed_time" in progress_data:
+                    elapsed = progress_data["elapsed_time"]
+                    print(f"Thời gian đã trôi qua: {elapsed.get('formatted', 'N/A')}")
+                
+                # Hiển thị thông tin tiến độ phần trăm nếu có
+                if "completion_percentage" in progress_data:
+                    print(f"Hoàn thành: {progress_data['completion_percentage']}%")
+                
+                # Hiển thị thông tin chi tiết về section hiện tại nếu đang ở giai đoạn nghiên cứu
+                if status == "researching" and "current_section" in progress_info:
+                    current_section = progress_info.get("current_section", 0)
+                    total_sections = progress_info.get("total_sections", 0)
+                    section_title = progress_info.get("current_section_title", "")
+                    
+                    if current_section and total_sections:
+                        print(f"Đang nghiên cứu phần {current_section}/{total_sections}: {section_title}")
                 
                 # Nếu đã hoàn thành phase nghiên cứu hoặc đang ở phase chỉnh sửa
                 if status in ["editing", "completed"]:
@@ -118,7 +144,8 @@ async def main():
                             "research_id": research_id,
                             "request": research_request,
                             "outline": result.get('outline'),
-                            "sections": sections
+                            "sections": sections,
+                            "progress_history": progress_data
                         }, f, ensure_ascii=False, indent=2)
                     
                     logger.info(f"Đã lưu thông tin nghiên cứu vào file: {output_file}")
@@ -131,13 +158,10 @@ async def main():
                     logger.error("Nghiên cứu thất bại!")
                     print("\nNghiên cứu thất bại!")
                     
-                    error_response = requests.get(f"{BASE_URL}/research/{research_id}")
-                    error_response.raise_for_status()
-                    error_data = error_response.json()
-                    error = error_data.get("error", {})
-                    
-                    error_message = error.get('message', 'Unknown error')
-                    details = error.get("details", {})
+                    # Lấy thông tin lỗi từ progress_data
+                    error_info = progress_data.get("error_info", {})
+                    error_message = error_info.get('message', 'Unknown error')
+                    details = error_info.get("details", {})
                     
                     logger.error(f"Lỗi: {error_message}")
                     if details:

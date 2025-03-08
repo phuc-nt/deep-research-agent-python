@@ -28,14 +28,14 @@ class ResearchService(BaseResearchPhase):
         outline: ResearchOutline
     ) -> List[ResearchSection]:
         """
-        Thực thi phase nghiên cứu
+        Thực hiện nghiên cứu dựa trên dàn ý
         
         Args:
             request: Yêu cầu nghiên cứu
-            outline: Dàn ý từ PrepareService
+            outline: Dàn ý nghiên cứu
             
         Returns:
-            List[ResearchSection]: Danh sách các phần đã được nghiên cứu
+            List[ResearchSection]: Danh sách các phần đã nghiên cứu
             
         Raises:
             ResearchError: Nếu có lỗi trong quá trình nghiên cứu
@@ -45,33 +45,47 @@ class ResearchService(BaseResearchPhase):
             logger.info(f"Bắt đầu nghiên cứu cho topic: {request.topic}")
             logger.info(f"Số phần cần nghiên cứu: {len(outline.sections)}")
             
-            # Context cho việc nghiên cứu
+            # Tạo context cho quá trình nghiên cứu
             context = {
+                "query": request.query,
                 "topic": request.topic,
                 "scope": request.scope,
-                "target_audience": request.target_audience
+                "target_audience": request.target_audience,
+                "outline": outline.dict()
             }
             
             # Nghiên cứu từng phần
             researched_sections = []
+            total_sections = len(outline.sections)
+            
             for i, section in enumerate(outline.sections):
-                logger.info(f"=== BẮT ĐẦU NGHIÊN CỨU PHẦN {i+1}/{len(outline.sections)}: {section.title} ===")
-                try:
-                    researched_section = await self.research_section(
-                        section=section,
-                        context=context
-                    )
-                    researched_sections.append(researched_section)
-                    logger.info(f"=== KẾT THÚC NGHIÊN CỨU PHẦN {i+1} - THÀNH CÔNG ===")
-                except Exception as e:
-                    logger.error(f"=== KẾT THÚC NGHIÊN CỨU PHẦN {i+1} - THẤT BẠI ===")
-                    logger.error(f"Lỗi khi nghiên cứu phần {section.title}: {str(e)}")
-                    # Vẫn tiếp tục với phần tiếp theo
+                logger.info(f"Bắt đầu nghiên cứu phần {i+1}/{total_sections}: {section.title}")
+                
+                # Cập nhật thông tin tiến độ
+                progress_info = {
+                    "phase": "researching",
+                    "current_section": i + 1,
+                    "total_sections": total_sections,
+                    "current_section_title": section.title,
+                    "completed_sections": i
+                }
+                
+                # Gửi thông tin tiến độ đến callback nếu có
+                if hasattr(self, 'update_progress_callback') and callable(self.update_progress_callback):
+                    await self.update_progress_callback(progress_info)
+                
+                # Nghiên cứu phần này
+                researched_section = await self.research_section(section, context)
+                researched_sections.append(researched_section)
+                
+                logger.info(f"Đã hoàn thành nghiên cứu phần {i+1}/{total_sections}: {section.title}")
+                logger.info(f"Độ dài nội dung: {len(researched_section.content) if researched_section.content else 0} ký tự")
+                logger.info(f"Số nguồn tham khảo: {len(researched_section.sources) if researched_section.sources else 0}")
             
-            logger.info(f"Đã hoàn thành nghiên cứu {len(researched_sections)}/{len(outline.sections)} phần")
             logger.info(f"=== KẾT THÚC PHASE NGHIÊN CỨU - THÀNH CÔNG ===")
-            return researched_sections
+            logger.info(f"Đã hoàn thành nghiên cứu {len(researched_sections)}/{total_sections} phần")
             
+            return researched_sections
         except Exception as e:
             logger.error(f"=== KẾT THÚC PHASE NGHIÊN CỨU - THẤT BẠI ===")
             logger.error(f"Lỗi trong quá trình nghiên cứu: {str(e)}")

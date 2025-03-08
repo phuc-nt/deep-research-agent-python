@@ -52,5 +52,6 @@ class ResearchResponse(BaseModel):
     result: Optional[ResearchResult] = Field(None, description="Kết quả nghiên cứu")
     error: Optional[ResearchError] = Field(None, description="Thông tin lỗi nếu có")
     github_url: Optional[str] = Field(None, description="URL của repository trên GitHub")
+    progress_info: Optional[Dict[str, Any]] = Field(None, description="Thông tin chi tiết về tiến độ nghiên cứu")
     created_at: datetime = Field(default_factory=datetime.utcnow, description="Thời điểm tạo")
     updated_at: datetime = Field(default_factory=datetime.utcnow, description="Thời điểm cập nhật cuối") 

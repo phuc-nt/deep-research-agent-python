@@ -76,16 +76,22 @@ class PreparePrompts:
     
     Hãy tạo một dàn ý nghiên cứu chi tiết bao gồm các phần logic và có cấu trúc rõ ràng.
     
+    LƯU Ý QUAN TRỌNG: 
+    1. Dàn ý PHẢI tập trung vào chủ đề cụ thể được yêu cầu, KHÔNG tạo dàn ý chung chung về quy trình nghiên cứu.
+    2. Mỗi phần trong dàn ý phải liên quan trực tiếp đến chủ đề, với tiêu đề cụ thể phản ánh nội dung của phần đó.
+    3. KHÔNG sử dụng các tiêu đề chung chung như "Giới thiệu", "Phương pháp nghiên cứu", "Kết luận" mà không có thông tin cụ thể về chủ đề.
+    4. Mỗi tiêu đề phần phải chứa các từ khóa liên quan trực tiếp đến chủ đề nghiên cứu.
+    
     Trả về kết quả dưới dạng JSON có cấu trúc như sau:
     {{
         "researchSections": [
             {{
-                "title": "Tiêu đề phần 1",
-                "description": "Mô tả ngắn gọn về nội dung phần 1"
+                "title": "Tiêu đề phần 1 (phải liên quan trực tiếp đến chủ đề)",
+                "description": "Mô tả ngắn gọn về nội dung phần 1, nêu rõ các điểm chính sẽ được đề cập"
             }},
             {{
-                "title": "Tiêu đề phần 2",
-                "description": "Mô tả ngắn gọn về nội dung phần 2"
+                "title": "Tiêu đề phần 2 (phải liên quan trực tiếp đến chủ đề)",
+                "description": "Mô tả ngắn gọn về nội dung phần 2, nêu rõ các điểm chính sẽ được đề cập"
             }},
             ...thêm các phần khác nếu cần
         ]
@@ -93,6 +99,12 @@ class PreparePrompts:
     
     Mỗi phần nên có tiêu đề rõ ràng và mô tả ngắn gọn về nội dung sẽ đề cập.
     Tổng số phần nên từ 3-5 phần, bao gồm phần giới thiệu và kết luận.
+    
+    Ví dụ, nếu chủ đề là "Bất công trong thu nhập ở Việt Nam", các tiêu đề phần có thể là:
+    - "Thực trạng bất bình đẳng thu nhập tại Việt Nam hiện nay"
+    - "Nguyên nhân dẫn đến bất công trong phân phối thu nhập ở Việt Nam"
+    - "Tác động của bất bình đẳng thu nhập đến phát triển kinh tế-xã hội Việt Nam"
+    - "Giải pháp giảm thiểu bất công trong thu nhập tại Việt Nam"
     
     Chỉ trả về JSON, không thêm text khác.
     """
