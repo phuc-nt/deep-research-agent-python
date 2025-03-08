@@ -43,3 +43,11 @@ htmlcov/
 
 # Docker
 .docker/
+
+# Data files
+data/
+
+# Test files
+test_edit.py
+test_perplexity.py
+test_services.py
