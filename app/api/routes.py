@@ -876,3 +876,274 @@ async def get_research_progress(research_id: str) -> Dict[str, Any]:
         response["github_url"] = task.github_url
     
     return response 
+
+@router.post("/research/complete", response_model=ResearchResponse)
+async def create_complete_research(request: ResearchRequest, background_tasks: BackgroundTasks) -> ResearchResponse:
+    """
+    Tạo yêu cầu nghiên cứu mới và thực hiện toàn bộ quy trình từ đầu đến cuối,
+    tự động phát hiện khi research đã xong để chuyển sang edit.
+    
+    Args:
+        request: Thông tin yêu cầu nghiên cứu
+        background_tasks: Background tasks để xử lý nghiên cứu
+        
+    Returns:
+        ResearchResponse: Thông tin về research task đã tạo
+    """
+    try:
+        # Tạo ID mới cho research task
+        task_id = str(uuid4())
+        logger.info(f"Tạo research task mới với ID: {task_id}")
+        
+        # Tạo research task mới
+        task = ResearchResponse(
+            id=task_id,
+            status=ResearchStatus.PENDING,
+            request=request,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
+            progress_info={
+                "phase": "pending",
+                "message": "Đã nhận yêu cầu nghiên cứu, đang chuẩn bị xử lý",
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        )
+        
+        # Lưu task vào bộ nhớ và file
+        research_tasks[task_id] = task
+        await research_storage_service.save_task(task)
+        
+        # Chạy quá trình nghiên cứu hoàn chỉnh trong background
+        background_tasks.add_task(process_complete_research, task_id, request)
+        
+        logger.info(f"Đã tạo research task với ID: {task_id}")
+        logger.info(f"Thông tin yêu cầu: Query: '{request.query}', Topic: '{request.topic}', Scope: '{request.scope}', Target Audience: '{request.target_audience}'")
+        
+        return task
+        
+    except Exception as e:
+        logger.error(f"Lỗi khi tạo yêu cầu nghiên cứu: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
+
+async def process_complete_research(task_id: str, request: ResearchRequest):
+    """
+    Xử lý yêu cầu nghiên cứu hoàn chỉnh trong background, tự động phát hiện khi research đã xong để chuyển sang edit
+    
+    Args:
+        task_id: ID của research task
+        request: Yêu cầu nghiên cứu
+    """
+    try:
+        logger.info(f"=== BẮT ĐẦU XỬ LÝ RESEARCH TASK HOÀN CHỈNH {task_id} ===")
+        logger.info(f"Thông tin yêu cầu: Query: '{request.query}', Topic: '{request.topic}', Scope: '{request.scope}', Target Audience: '{request.target_audience}'")
+        
+        # Khởi tạo các services
+        prepare_service = PrepareService()
+        research_service = ResearchService()
+        edit_service = EditService()
+        
+        # Thiết lập callback để cập nhật tiến độ
+        async def update_progress_callback(progress_info: Dict[str, Any]):
+            if task_id in research_tasks:
+                research_tasks[task_id].progress_info = progress_info
+                research_tasks[task_id].updated_at = datetime.utcnow()
+                await research_storage_service.save_task(research_tasks[task_id])
+        
+        # Gán callback cho research_service
+        research_service.update_progress_callback = update_progress_callback
+        
+        # Phase 1: Chuẩn bị
+        logger.info(f"[Task {task_id}] === BẮT ĐẦU PHASE CHUẨN BỊ ===")
+        research_tasks[task_id].status = ResearchStatus.ANALYZING
+        research_tasks[task_id].updated_at = datetime.utcnow()
+        research_tasks[task_id].progress_info = {
+            "phase": "analyzing",
+            "message": "Đang phân tích yêu cầu nghiên cứu",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        await research_storage_service.save_task(research_tasks[task_id])
+        
+        start_time = time.time()
+        analysis = await prepare_service.analyze_query(request.query)
+        end_time = time.time()
+        
+        # Chuẩn hóa kết quả phân tích (kiểm tra cả viết hoa và viết thường)
+        topic = analysis.get("Topic") or analysis.get("topic", request.query)
+        scope = analysis.get("Scope") or analysis.get("scope", "Phân tích toàn diện")
+        target_audience = analysis.get("Target Audience") or analysis.get("target_audience", "Người đọc quan tâm đến chủ đề")
+        
+        logger.info(f"[Task {task_id}] Phân tích yêu cầu hoàn thành trong {end_time - start_time:.2f} giây")
+        logger.info(f"[Task {task_id}] Kết quả phân tích: Topic: '{topic}', Scope: '{scope}', Target Audience: '{target_audience}'")
+        
+        # Cập nhật request với thông tin phân tích đã chuẩn hóa
+        request.topic = topic
+        request.scope = scope
+        request.target_audience = target_audience
+        
+        # Cập nhật task với request đã cập nhật
+        research_tasks[task_id].request = request
+        research_tasks[task_id].updated_at = datetime.utcnow()
+        research_tasks[task_id].progress_info = {
+            "phase": "analyzed",
+            "message": "Đã phân tích xong yêu cầu nghiên cứu",
+            "timestamp": datetime.utcnow().isoformat(),
+            "analysis": {
+                "topic": topic,
+                "scope": scope,
+                "target_audience": target_audience
+            }
+        }
+        await research_storage_service.save_task(research_tasks[task_id])
+        
+        # Tạo dàn ý
+        logger.info(f"[Task {task_id}] === BẮT ĐẦU TẠO DÀN Ý ===")
+        research_tasks[task_id].status = ResearchStatus.OUTLINING
+        research_tasks[task_id].updated_at = datetime.utcnow()
+        research_tasks[task_id].progress_info = {
+            "phase": "outlining",
+            "message": "Đang tạo dàn ý cho bài nghiên cứu",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        await research_storage_service.save_task(research_tasks[task_id])
+        
+        start_time = time.time()
+        outline = await prepare_service.create_outline(request)
+        end_time = time.time()
+        
+        logger.info(f"[Task {task_id}] Tạo dàn ý hoàn thành trong {end_time - start_time:.2f} giây")
+        logger.info(f"[Task {task_id}] Dàn ý có {len(outline.sections)} phần")
+        
+        # Lưu outline vào task
+        research_tasks[task_id].outline = outline
+        research_tasks[task_id].updated_at = datetime.utcnow()
+        research_tasks[task_id].progress_info = {
+            "phase": "outlined",
+            "message": "Đã tạo xong dàn ý cho bài nghiên cứu",
+            "timestamp": datetime.utcnow().isoformat(),
+            "outline_sections_count": len(outline.sections)
+        }
+        await research_storage_service.save_outline(task_id, outline)
+        await research_storage_service.save_task(research_tasks[task_id])
+        
+        # Phase 2: Nghiên cứu
+        logger.info(f"[Task {task_id}] === BẮT ĐẦU PHASE NGHIÊN CỨU ===")
+        research_tasks[task_id].status = ResearchStatus.RESEARCHING
+        research_tasks[task_id].updated_at = datetime.utcnow()
+        research_tasks[task_id].progress_info = {
+            "phase": "researching",
+            "message": "Đang bắt đầu nghiên cứu các phần",
+            "timestamp": datetime.utcnow().isoformat(),
+            "current_section": 0,
+            "total_sections": len(outline.sections),
+            "completed_sections": 0
+        }
+        await research_storage_service.save_task(research_tasks[task_id])
+        
+        start_time = time.time()
+        researched_sections = await research_service.execute(request, outline)
+        end_time = time.time()
+        
+        logger.info(f"[Task {task_id}] Phase nghiên cứu hoàn thành trong {end_time - start_time:.2f} giây")
+        logger.info(f"[Task {task_id}] Đã nghiên cứu {len(researched_sections)}/{len(outline.sections)} phần")
+        
+        # Lưu researched_sections vào task
+        research_tasks[task_id].sections = researched_sections
+        research_tasks[task_id].progress_info = {
+            "phase": "researched",
+            "message": "Đã hoàn thành nghiên cứu tất cả các phần",
+            "timestamp": datetime.utcnow().isoformat(),
+            "total_sections": len(outline.sections),
+            "completed_sections": len(researched_sections),
+            "time_taken": f"{end_time - start_time:.2f} giây"
+        }
+        await research_storage_service.save_sections(task_id, researched_sections)
+        await research_storage_service.save_task(research_tasks[task_id])
+        
+        # Phase 3: Chỉnh sửa - Tự động chuyển sang phase chỉnh sửa
+        logger.info(f"[Task {task_id}] === BẮT ĐẦU PHASE CHỈNH SỬA (TỰ ĐỘNG) ===")
+        research_tasks[task_id].status = ResearchStatus.EDITING
+        research_tasks[task_id].updated_at = datetime.utcnow()
+        research_tasks[task_id].progress_info = {
+            "phase": "editing",
+            "message": "Đang tự động chuyển sang giai đoạn chỉnh sửa",
+            "timestamp": datetime.utcnow().isoformat(),
+            "sections_count": len(researched_sections),
+            "outline_sections_count": len(outline.sections)
+        }
+        await research_storage_service.save_task(research_tasks[task_id])
+        
+        start_time = time.time()
+        result = await edit_service.execute(request, outline, researched_sections)
+        end_time = time.time()
+        
+        logger.info(f"[Task {task_id}] Phase chỉnh sửa hoàn thành trong {end_time - start_time:.2f} giây")
+        logger.info(f"[Task {task_id}] Kết quả: Tiêu đề: '{result.title}', Độ dài nội dung: {len(result.content)} ký tự, Số nguồn: {len(result.sources)}")
+        
+        # Lưu kết quả vào file
+        await research_storage_service.save_result(task_id, result)
+        
+        # Lưu kết quả lên GitHub
+        logger.info(f"[Task {task_id}] === BẮT ĐẦU LƯU KẾT QUẢ LÊN GITHUB ===")
+        
+        # Tạo nội dung Markdown
+        markdown_content = f"# {result.title}\n\n{result.content}\n\n## Nguồn tham khảo\n\n"
+        for idx, source in enumerate(result.sources):
+            markdown_content += f"{idx+1}. [{source}]({source})\n"
+        
+        logger.info(f"[Task {task_id}] Đã tạo nội dung Markdown với {len(markdown_content)} ký tự")
+        
+        # Lưu lên GitHub
+        try:
+            github_service = service_factory.create_storage_service("github")
+            file_path = f"researches/{task_id}/result.md"
+            logger.info(f"[Task {task_id}] Đường dẫn file: {file_path}")
+            
+            start_time = time.time()
+            github_url = await github_service.save(markdown_content, file_path)
+            end_time = time.time()
+            
+            logger.info(f"[Task {task_id}] Đã lưu kết quả lên GitHub trong {end_time - start_time:.2f} giây")
+            logger.info(f"[Task {task_id}] URL GitHub: {github_url}")
+            
+            # Cập nhật URL GitHub vào task
+            research_tasks[task_id].github_url = github_url
+        except Exception as e:
+            logger.error(f"[Task {task_id}] Lỗi khi lưu kết quả lên GitHub: {str(e)}")
+        
+        # Cập nhật trạng thái task
+        research_tasks[task_id].status = ResearchStatus.COMPLETED
+        research_tasks[task_id].result = result
+        research_tasks[task_id].updated_at = datetime.utcnow()
+        research_tasks[task_id].progress_info = {
+            "phase": "completed",
+            "message": "Đã hoàn thành toàn bộ quy trình nghiên cứu",
+            "timestamp": datetime.utcnow().isoformat(),
+            "content_length": len(result.content),
+            "sources_count": len(result.sources),
+            "total_time": f"{time.time() - start_time:.2f} giây"
+        }
+        await research_storage_service.save_task(research_tasks[task_id])
+        
+        logger.info(f"[Task {task_id}] === HOÀN THÀNH RESEARCH TASK HOÀN CHỈNH ===")
+        
+    except Exception as e:
+        logger.error(f"[Task {task_id}] Lỗi khi xử lý research task hoàn chỉnh: {str(e)}")
+        
+        # Cập nhật trạng thái task thành failed
+        if task_id in research_tasks:
+            research_tasks[task_id].status = ResearchStatus.FAILED
+            research_tasks[task_id].error = ResearchError(
+                message="Lỗi trong quá trình xử lý research task hoàn chỉnh",
+                details={"error": str(e)}
+            )
+            research_tasks[task_id].updated_at = datetime.utcnow()
+            research_tasks[task_id].progress_info = {
+                "phase": "failed",
+                "message": f"Lỗi trong quá trình xử lý: {str(e)}",
+                "timestamp": datetime.utcnow().isoformat(),
+                "error": str(e)
+            }
+            await research_storage_service.save_task(research_tasks[task_id]) 

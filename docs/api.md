@@ -1,6 +1,8 @@
 # Deep Research Agent API
 
-API cho hệ thống nghiên cứu tự động sử dụng AI.
+API cho hệ thống nghiên cứu tự động sử dụng AI. Hệ thống cung cấp khả năng thực hiện toàn bộ quy trình nghiên cứu tự động, bao gồm phân tích yêu cầu, tạo dàn ý, nghiên cứu chi tiết, và chỉnh sửa cuối cùng. Với API mới `/research/complete`, người dùng có thể khởi tạo quy trình từ đầu đến cuối chỉ với một lần gọi API đơn giản.
+
+> **Lưu ý**: Chi tiết về luồng tương tác của từng API có thể xem tại [Sequence Diagrams](./sequence_diagrams.md).
 
 ## Base URL
 
@@ -10,11 +12,25 @@ http://localhost:8000/api/v1
 
 ## Endpoints
 
+Dưới đây là danh sách các endpoints hiện có:
+
+| Method | Endpoint | Mô tả |
+|--------|----------|-------|
+| POST | `/research` | Tạo yêu cầu nghiên cứu mới |
+| POST | `/research/complete` | Tạo và thực hiện yêu cầu nghiên cứu hoàn chỉnh (tự động) |
+| POST | `/research/edit_only` | Chỉnh sửa nội dung nghiên cứu sẵn có |
+| GET | `/research/{research_id}` | Lấy thông tin và kết quả nghiên cứu |
+| GET | `/research/{research_id}/status` | Lấy trạng thái hiện tại của yêu cầu nghiên cứu |
+| GET | `/research/{research_id}/progress` | Lấy thông tin tiến độ chi tiết |
+| GET | `/research/list` | Lấy danh sách các yêu cầu nghiên cứu |
+
 ### Tạo yêu cầu nghiên cứu mới
 
 ```
 POST /research
 ```
+
+> **Sequence diagram**: [Xem chi tiết](./sequence_diagrams.md#1-post-research---tạo-yêu-cầu-nghiên-cứu-mới)
 
 #### Request Body
 
@@ -34,6 +50,8 @@ POST /research
 | scope | string | Phạm vi nghiên cứu (tùy chọn) |
 | target_audience | string | Đối tượng độc giả (tùy chọn) |
 
+> **Lưu ý**: Khi chỉ cung cấp `query`, hệ thống sẽ tự động phân tích để xác định `topic`, `scope` và `target_audience`.
+
 #### Response
 
 ```json
@@ -50,6 +68,67 @@ POST /research
   "result": null,
   "error": null,
   "github_url": null,
+  "progress_info": {
+    "phase": "pending",
+    "message": "Đã nhận yêu cầu nghiên cứu, đang chuẩn bị xử lý",
+    "timestamp": "2023-03-11T10:15:30.123456"
+  },
+  "created_at": "2023-03-11T10:15:30.123456",
+  "updated_at": "2023-03-11T10:15:30.123456"
+}
+```
+
+### Tạo yêu cầu nghiên cứu hoàn chỉnh (tự động)
+
+```
+POST /research/complete
+```
+
+> **Sequence diagram**: [Xem chi tiết](./sequence_diagrams.md#2-post-researchcomplete---tạo-yêu-cầu-nghiên-cứu-hoàn-chỉnh-tự-động)
+
+Endpoint này thực hiện toàn bộ quy trình nghiên cứu từ đầu đến cuối, tự động phát hiện khi research đã xong để chuyển sang edit. Không cần phải gọi `/research/edit_only` sau khi nghiên cứu hoàn thành.
+
+#### Request Body
+
+```json
+{
+  "query": "Nghiên cứu về trí tuệ nhân tạo và ứng dụng trong giáo dục",
+  "topic": "Trí tuệ nhân tạo trong giáo dục",
+  "scope": "Tổng quan và ứng dụng thực tế",
+  "target_audience": "Giáo viên và nhà quản lý giáo dục"
+}
+```
+
+| Tham số | Kiểu | Mô tả |
+|---------|------|-------|
+| query | string | Yêu cầu nghiên cứu (bắt buộc) |
+| topic | string | Chủ đề nghiên cứu (tùy chọn) |
+| scope | string | Phạm vi nghiên cứu (tùy chọn) |
+| target_audience | string | Đối tượng độc giả (tùy chọn) |
+
+> **Lưu ý**: Khi chỉ cung cấp `query`, hệ thống sẽ tự động phân tích để xác định `topic`, `scope` và `target_audience`.
+
+#### Response
+
+```json
+{
+  "id": "ca214ee5-6204-4f3d-98c4-4f558e27399b",
+  "status": "pending",
+  "request": {
+    "query": "Nghiên cứu về trí tuệ nhân tạo và ứng dụng trong giáo dục",
+    "topic": "Trí tuệ nhân tạo trong giáo dục",
+    "scope": "Tổng quan và ứng dụng thực tế",
+    "target_audience": "Giáo viên và nhà quản lý giáo dục"
+  },
+  "outline": null,
+  "result": null,
+  "error": null,
+  "github_url": null,
+  "progress_info": {
+    "phase": "pending",
+    "message": "Đã nhận yêu cầu nghiên cứu, đang chuẩn bị xử lý",
+    "timestamp": "2023-03-11T10:15:30.123456"
+  },
   "created_at": "2023-03-11T10:15:30.123456",
   "updated_at": "2023-03-11T10:15:30.123456"
 }
@@ -60,6 +139,8 @@ POST /research
 ```
 GET /research/{research_id}
 ```
+
+> **Sequence diagram**: [Xem chi tiết](./sequence_diagrams.md#4-get-researchresearch_id---lấy-thông-tin-và-kết-quả-nghiên-cứu)
 
 #### Path Parameters
 
@@ -104,6 +185,15 @@ GET /research/{research_id}
   },
   "error": null,
   "github_url": "https://github.com/username/repo/research-123",
+  "progress_info": {
+    "phase": "completed",
+    "message": "Đã hoàn thành toàn bộ quá trình nghiên cứu",
+    "timestamp": "2023-03-11T10:20:45.678901",
+    "time_taken": "302.5 giây",
+    "content_length": 12405,
+    "sources_count": 15,
+    "total_time": "305.3 giây"
+  },
   "created_at": "2023-03-11T10:15:30.123456",
   "updated_at": "2023-03-11T10:20:45.678901"
 }
@@ -115,6 +205,8 @@ GET /research/{research_id}
 GET /research/{research_id}/status
 ```
 
+> **Sequence diagram**: [Xem chi tiết](./sequence_diagrams.md#5-get-researchresearch_idstatus---lấy-trạng-thái-hiện-tại-của-yêu-cầu-nghiên-cứu)
+
 #### Path Parameters
 
 | Tham số | Kiểu | Mô tả |
@@ -123,8 +215,19 @@ GET /research/{research_id}/status
 
 #### Response
 
-```
-"completed"
+```json
+{
+  "status": "researching",
+  "progress_info": {
+    "phase": "researching",
+    "message": "Đang nghiên cứu phần 2/5",
+    "timestamp": "2023-03-11T10:18:30.123456",
+    "current_section": 2,
+    "total_sections": 5,
+    "completed_sections": 1,
+    "current_title": "Các ứng dụng hiện tại của AI trong giáo dục"
+  }
+}
 ```
 
 Các trạng thái có thể:
@@ -135,6 +238,41 @@ Các trạng thái có thể:
 - `editing`: Đang chỉnh sửa
 - `completed`: Đã hoàn thành
 - `failed`: Thất bại
+
+### Lấy thông tin tiến độ chi tiết
+
+```
+GET /research/{research_id}/progress
+```
+
+> **Sequence diagram**: [Xem chi tiết](./sequence_diagrams.md#6-get-researchresearch_idprogress---lấy-thông-tin-tiến-độ-chi-tiết)
+
+#### Path Parameters
+
+| Tham số | Kiểu | Mô tả |
+|---------|------|-------|
+| research_id | string | ID của research task |
+
+#### Response
+
+```json
+{
+  "phase": "researching",
+  "message": "Đang nghiên cứu phần 2/5",
+  "timestamp": "2023-03-11T10:18:30.123456",
+  "current_section": 2,
+  "total_sections": 5,
+  "completed_sections": 1,
+  "current_title": "Các ứng dụng hiện tại của AI trong giáo dục",
+  "analysis": {
+    "topic": "Trí tuệ nhân tạo trong giáo dục",
+    "scope": "Tổng quan và ứng dụng thực tế",
+    "target_audience": "Giáo viên và nhà quản lý giáo dục"
+  },
+  "outline_sections_count": 5,
+  "time_elapsed": "182.5 giây"
+}
+```
 
 ### Lấy dàn ý nghiên cứu
 
@@ -167,12 +305,156 @@ GET /research/{research_id}/outline
 }
 ```
 
-## Quy trình nghiên cứu
+### Chỉ thực hiện giai đoạn chỉnh sửa
 
-1. **Tạo yêu cầu nghiên cứu**: Gửi POST request đến `/research` với thông tin yêu cầu
-2. **Theo dõi tiến độ**: Gọi GET `/research/{research_id}/status` để kiểm tra trạng thái
-3. **Xem dàn ý**: Khi trạng thái là `outlining` hoặc sau đó, có thể gọi GET `/research/{research_id}/outline` để xem dàn ý
-4. **Lấy kết quả**: Khi trạng thái là `completed`, gọi GET `/research/{research_id}` để lấy kết quả đầy đủ
+```
+POST /research/edit_only
+```
+
+> **Sequence diagram**: [Xem chi tiết](./sequence_diagrams.md#3-post-researchedit_only---chỉnh-sửa-nội-dung-nghiên-cứu-sẵn-có)
+
+#### Request Body
+
+```json
+{
+  "task_id": "ca214ee5-6204-4f3d-98c4-4f558e27399b"
+}
+```
+
+| Tham số | Kiểu | Mô tả |
+|---------|------|-------|
+| task_id | string | ID của research task đã có (bắt buộc) |
+
+#### Response
+
+Giống với response của endpoint `GET /research/{research_id}`
+
+### Danh sách nghiên cứu
+
+```
+GET /research
+```
+
+> **Sequence diagram**: [Xem chi tiết](./sequence_diagrams.md#7-get-researchlist---lấy-danh-sách-các-yêu-cầu-nghiên-cứu)
+
+#### Response
+
+```json
+[
+  {
+    "id": "ca214ee5-6204-4f3d-98c4-4f558e27399b",
+    "status": "completed",
+    "query": "Nghiên cứu về trí tuệ nhân tạo và ứng dụng trong giáo dục",
+    "created_at": "2023-03-11T10:15:30.123456",
+    "updated_at": "2023-03-11T10:20:45.678901"
+  },
+  {
+    "id": "b1a2e3f4-5678-90ab-cdef-1234567890ab",
+    "status": "researching",
+    "query": "Tác động của biến đổi khí hậu đến nông nghiệp",
+    "created_at": "2023-03-11T11:30:20.123456",
+    "updated_at": "2023-03-11T11:35:45.678901"
+  }
+]
+```
+
+## Mô hình dữ liệu
+
+### ResearchRequest
+Yêu cầu nghiên cứu
+```json
+{
+  "query": "Nghiên cứu về trí tuệ nhân tạo và ứng dụng trong giáo dục",
+  "topic": "Trí tuệ nhân tạo trong giáo dục",
+  "scope": "Tổng quan và ứng dụng thực tế",
+  "target_audience": "Giáo viên và nhà quản lý giáo dục"
+}
+```
+
+### ResearchSection
+Một phần của bài nghiên cứu
+```json
+{
+  "title": "Giới thiệu về trí tuệ nhân tạo trong giáo dục",
+  "description": "Tổng quan về AI và vai trò trong lĩnh vực giáo dục",
+  "content": "Nội dung chi tiết về phần này..."
+}
+```
+
+### ResearchOutline
+Dàn ý nghiên cứu
+```json
+{
+  "sections": [
+    {
+      "title": "Giới thiệu về trí tuệ nhân tạo trong giáo dục",
+      "description": "Tổng quan về AI và vai trò trong lĩnh vực giáo dục"
+    },
+    {
+      "title": "Các ứng dụng hiện tại của AI trong giáo dục",
+      "description": "Các ứng dụng đã và đang được triển khai"
+    }
+  ]
+}
+```
+
+### ResearchResult
+Kết quả nghiên cứu hoàn chỉnh
+```json
+{
+  "title": "Trí tuệ nhân tạo trong giáo dục: Hiện tại và tương lai",
+  "content": "Nội dung đầy đủ của bài nghiên cứu...",
+  "sections": [
+    {
+      "title": "Giới thiệu về trí tuệ nhân tạo trong giáo dục",
+      "description": "Tổng quan về AI và vai trò trong lĩnh vực giáo dục",
+      "content": "Nội dung chi tiết về phần này..."
+    }
+  ],
+  "sources": [
+    "https://example.com/source1",
+    "https://example.com/source2"
+  ]
+}
+```
+
+## Quy trình nghiên cứu cải tiến
+
+> **Flow diagram**: [Xem biểu đồ tổng quan](./sequence_diagrams.md#tóm-tắt-quy-trình-nghiên-cứu-hoàn-chỉnh)
+
+1. **Phân tích yêu cầu**: Khi nhận được yêu cầu nghiên cứu, hệ thống sẽ tự động phân tích để xác định `topic`, `scope` và `target_audience` nếu chưa được cung cấp.
+
+2. **Tạo dàn ý**: Hệ thống tạo dàn ý chi tiết cho nghiên cứu, dựa trên kết quả phân tích.
+
+3. **Nghiên cứu từng phần**: Hệ thống thực hiện nghiên cứu từng phần một cách tuần tự, cập nhật tiến độ theo thời gian thực.
+
+4. **Cập nhật tiến độ**: Trong suốt quá trình, hệ thống liên tục cập nhật thông tin tiến độ chi tiết, bao gồm giai đoạn hiện tại, số phần đã hoàn thành, và thời gian xử lý.
+
+5. **Tự động chuyển phase**: Với endpoint `/research/complete`, hệ thống tự động phát hiện khi nghiên cứu đã hoàn thành và chuyển sang giai đoạn chỉnh sửa mà không cần can thiệp thủ công.
+
+6. **Chỉnh sửa và tổng hợp**: Sau khi nghiên cứu xong tất cả các phần, hệ thống sẽ tổng hợp và chỉnh sửa nội dung thành một bài viết hoàn chỉnh.
+
+7. **Lưu trữ và xuất kết quả**: Kết quả cuối cùng sẽ được lưu trữ dưới dạng JSON và Markdown, đồng thời được đăng lên GitHub nếu được cấu hình.
+
+## Cơ chế Validation và Retry
+
+Hệ thống áp dụng nhiều cơ chế validation để đảm bảo chất lượng kết quả:
+
+### Validation trong Phân tích Yêu cầu
+- Kiểm tra kết quả phân tích có chứa đầy đủ thông tin về topic, scope và target_audience
+- Đảm bảo topic phù hợp với query
+- Retry tự động nếu thiếu thông tin hoặc thông tin không liên quan
+
+### Validation trong Tạo Dàn ý
+- Kiểm tra dàn ý có ít nhất 3 phần
+- Đảm bảo các phần trong dàn ý có liên quan đến topic
+- Sử dụng keyword matching để đảm bảo dàn ý phù hợp với chủ đề
+- Retry tự động cho đến khi có dàn ý hợp lệ
+
+### Validation trong Nghiên cứu
+- Kiểm tra nội dung có đáp ứng đủ độ dài tối thiểu
+- Xác minh nội dung có liên quan đến tiêu đề phần
+- Đảm bảo có nguồn tham khảo đáng tin cậy
 
 ## Xử lý lỗi
 
@@ -192,12 +474,48 @@ Nếu có lỗi xảy ra trong quá trình nghiên cứu, trạng thái sẽ chu
     }
   },
   "github_url": null,
+  "progress_info": {
+    "phase": "failed",
+    "message": "Đã xảy ra lỗi trong quá trình phân tích yêu cầu",
+    "timestamp": "2023-03-11T10:16:45.678901",
+    "error_details": "Lỗi khi phân tích yêu cầu nghiên cứu"
+  },
   "created_at": "2023-03-11T10:15:30.123456",
   "updated_at": "2023-03-11T10:16:45.678901"
 }
 ```
 
+## Cấu trúc lưu trữ dữ liệu
+
+Hệ thống sử dụng cấu trúc lưu trữ tối ưu để giảm thiểu dư thừa và tăng hiệu suất:
+
+### Cấu trúc thư mục
+```
+data/
+└── research_tasks/
+    └── {task_id}/
+        ├── task.json       # Thông tin cơ bản
+        ├── outline.json    # Dàn ý nghiên cứu
+        ├── sections.json   # Nội dung các phần
+        └── result.json     # Kết quả cuối cùng
+```
+
+### Mô tả file
+- **task.json**: Chứa thông tin cơ bản về task (ID, trạng thái, request, URL GitHub, tiến độ, thời gian)
+- **outline.json**: Chứa danh sách các phần trong dàn ý (tiêu đề, mô tả)
+- **sections.json**: Chứa nội dung chi tiết của từng phần sau khi nghiên cứu
+- **result.json**: Chứa kết quả cuối cùng sau khi tổng hợp và chỉnh sửa
+
+Cấu trúc này cho phép tách biệt các thành phần và tải theo nhu cầu, đồng thời hỗ trợ việc tiếp tục từ các giai đoạn trước đó:
+- `load_task()`: Tải thông tin cơ bản
+- `load_outline()`: Tải dàn ý
+- `load_sections()`: Tải nội dung các phần
+- `load_result()`: Tải kết quả cuối cùng
+- `load_full_task()`: Tải tất cả thông tin
+
 ## Ví dụ sử dụng (Python)
+
+### Sử dụng flow hoàn chỉnh
 
 ```python
 import requests
@@ -205,22 +523,22 @@ import time
 
 BASE_URL = "http://localhost:8000/api/v1"
 
-# Tạo yêu cầu nghiên cứu
+# Tạo yêu cầu nghiên cứu hoàn chỉnh
 data = {
-    "query": "Nghiên cứu về trí tuệ nhân tạo và ứng dụng trong giáo dục",
-    "topic": "Trí tuệ nhân tạo trong giáo dục",
-    "scope": "Tổng quan và ứng dụng thực tế",
-    "target_audience": "Giáo viên và nhà quản lý giáo dục"
+    "query": "Tác động của biến đổi khí hậu đến nông nghiệp Việt Nam"
 }
-response = requests.post(f"{BASE_URL}/research", json=data)
+response = requests.post(f"{BASE_URL}/research/complete", json=data)
 research_id = response.json()["id"]
 
 # Theo dõi tiến độ
 while True:
     status_response = requests.get(f"{BASE_URL}/research/{research_id}/status")
-    status = status_response.json()
+    status_data = status_response.json()
+    status = status_data["status"]
+    progress = status_data["progress_info"]
     
     print(f"Status: {status}")
+    print(f"Progress: {progress['message']}")
     
     if status == "completed":
         # Lấy kết quả
@@ -229,6 +547,8 @@ while True:
         print("Research completed!")
         print(f"Title: {result['result']['title']}")
         print(f"Content length: {len(result['result']['content'])}")
+        print(f"Sources: {len(result['result']['sources'])}")
+        print(f"GitHub URL: {result['github_url']}")
         break
     elif status == "failed":
         # Xử lý lỗi
@@ -237,6 +557,6 @@ while True:
         print(f"Research failed: {error['message']}")
         break
     
-    # Đợi 5 giây trước khi kiểm tra lại
-    time.sleep(5)
+    # Đợi 10 giây trước khi kiểm tra lại
+    time.sleep(10)
 ```

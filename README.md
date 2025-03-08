@@ -1,6 +1,8 @@
 # Deep Research Agent
 
-Một agent thông minh giúp thực hiện nghiên cứu chuyên sâu và tạo ra các bài viết phân tích chất lượng cao.
+Một agent thông minh giúp thực hiện nghiên cứu chuyên sâu và tạo ra các bài viết phân tích chất lượng cao. Hệ thống hỗ trợ quy trình hoàn chỉnh từ phân tích yêu cầu nghiên cứu đến tạo dàn ý, nghiên cứu chi tiết, và chỉnh sửa bài viết.
+
+Dự án này bao gồm [tài liệu API chi tiết](docs/api.md) và [sequence diagrams](docs/sequence_diagrams.md) mô tả luồng tương tác giữa các thành phần trong hệ thống, giúp người dùng dễ dàng hiểu và tích hợp với hệ thống.
 
 ## Tính năng
 
@@ -16,71 +18,69 @@ Một agent thông minh giúp thực hiện nghiên cứu chuyên sâu và tạo
 
 ## Quy trình hoạt động
 
+> Xem thêm: [Biểu đồ tổng quan quy trình nghiên cứu hoàn chỉnh](docs/sequence_diagrams.md#tóm-tắt-quy-trình-nghiên-cứu-hoàn-chỉnh)
+
 ```mermaid
-sequenceDiagram
-    participant C as Client
-    participant P as PrepareService
-    participant R as ResearchService
-    participant E as EditService
-    participant LLM as LLM Services
-    participant S as SearchService
-    participant RS as ResearchStorageService
-    participant G as GitHubStorage
-
-    C->>P: Create Research Request
+graph TD
+    Client[Client/API Consumers] --> API[API Layer]
     
-    %% Prepare Phase
-    activate P
-    P->>LLM: Analyze Query
-    LLM-->>P: Query Analysis
-    P->>S: Search Overview Info
-    S-->>P: Search Results
-    P->>LLM: Create Outline
-    LLM-->>P: Research Outline
-    P->>RS: Save Task & Outline
-    RS-->>P: Saved Confirmation
-    P-->>C: Analysis & Outline
-    deactivate P
-    
-    %% Research Phase
-    C->>R: Research Request + Outline
-    activate R
-    loop Each Section
-        R->>S: Deep Search
-        S-->>R: Detailed Results
-        R->>LLM: Analyze & Synthesize
-        LLM-->>R: Section Content
-        R->>RS: Update Task Progress
-        RS-->>R: Saved Confirmation
-        R-->>C: Progress Update
+    subgraph "Backend Services"
+        API --> Prepare[Prepare Service]
+        API --> Research[Research Service]
+        API --> Edit[Edit Service]
+        API --> Storage[Storage Service]
+        
+        Prepare --> LLM1[LLM Service]
+        Prepare --> Search1[Search Service]
+        
+        Research --> LLM2[LLM Service]
+        Research --> Search2[Search Service]
+        
+        Edit --> LLM3[LLM Service]
+        
+        Storage --> FileSystem[File System]
+        Storage --> GitHub[GitHub Storage]
     end
-    R->>RS: Save All Sections
-    RS-->>R: Saved Confirmation
-    R-->>C: Research Sections
-    deactivate R
     
-    %% Edit Phase
-    C->>E: Research Request + Sections
-    activate E
-    E->>RS: Load Sections
-    RS-->>E: Sections Data
-    E->>LLM: Edit & Format
-    LLM-->>E: Edited Content
-    E->>LLM: Generate Title
-    LLM-->>E: Final Title
-    E->>RS: Save Result
-    RS-->>E: Saved Confirmation
-    E->>G: Save Content to GitHub
-    G-->>E: GitHub URL
-    E->>RS: Update Task with GitHub URL
-    RS-->>E: Saved Confirmation
-    E-->>C: Final Content + URL
-    deactivate E
-
-    %% Load Existing Research
-    C->>RS: Request Existing Research
-    RS-->>C: Research Data (Task/Outline/Sections/Result)
+    subgraph "NghienCuuFlow"
+        P1[B1: Phân tích yêu cầu] --> P2[B2: Tạo dàn ý]
+        P2 --> P3[B3: Nghiên cứu từng phần]
+        P3 --> P4[B4: Chỉnh sửa nội dung]
+        P4 --> P5[B5: Lưu trữ kết quả]
+    end
+    
+    Prepare -.-> P1
+    Prepare -.-> P2
+    Research -.-> P3
+    Edit -.-> P4
+    Storage -.-> P5
+    
+    API --> Results[Research Results]
+    Results --> Client
 ```
+
+Hệ thống được thiết kế theo kiến trúc module hóa cao, bao gồm các thành phần chính:
+
+1. **API Layer**: Cung cấp các endpoints RESTful để tương tác với hệ thống.
+   - Xử lý yêu cầu từ người dùng
+   - Điều phối các services liên quan
+   - Cập nhật và theo dõi tiến độ nghiên cứu
+
+2. **Backend Services**:
+   - **Prepare Service**: Phân tích yêu cầu và tạo dàn ý nghiên cứu
+   - **Research Service**: Thực hiện nghiên cứu cho từng phần của dàn ý
+   - **Edit Service**: Chỉnh sửa và tổng hợp nội dung thành bài viết hoàn chỉnh
+   - **Storage Service**: Quản lý lưu trữ và truy xuất dữ liệu
+
+3. **External Services**:
+   - **LLM Service**: Tương tác với các mô hình ngôn ngữ lớn (OpenAI, Claude)
+   - **Search Service**: Tìm kiếm thông tin từ các nguồn (Google, Perplexity)
+   - **GitHub Storage**: Lưu trữ và quản lý kết quả nghiên cứu trên GitHub
+
+4. **Quy trình nghiên cứu**:
+   - Phân tích yêu cầu → Tạo dàn ý → Nghiên cứu từng phần → Chỉnh sửa nội dung → Lưu trữ kết quả
+
+Kiến trúc này đảm bảo tính module hóa cao, dễ bảo trì và mở rộng, đồng thời cho phép theo dõi tiến độ chi tiết trong từng giai đoạn của quá trình nghiên cứu.
 
 ## Cấu trúc dự án
 
@@ -145,7 +145,7 @@ Chứa thông tin về yêu cầu nghiên cứu:
 - `query`: Câu hỏi hoặc chủ đề nghiên cứu
 - `topic`: Chủ đề nghiên cứu (tùy chọn)
 - `scope`: Phạm vi nghiên cứu (tùy chọn)
-- `target_audience`: Đối tượng độc giả (tùy chọn)
+- `target_audience`: Đối tượng đọc (tùy chọn)
 
 ### ResearchOutline
 Chứa thông tin về dàn ý nghiên cứu:
@@ -222,6 +222,8 @@ python run.py
 ```
 POST /research
 ```
+[Chi tiết API →](docs/api.md#tạo-yêu-cầu-nghiên-cứu-mới) | [Sequence diagram →](docs/sequence_diagrams.md#1-post-research---tạo-yêu-cầu-nghiên-cứu-mới)
+
 Body:
 ```json
 {
@@ -236,25 +238,43 @@ Body:
 ```
 GET /research/{research_id}/status
 ```
+[Chi tiết API →](docs/api.md#lấy-trạng-thái-nghiên-cứu) | [Sequence diagram →](docs/sequence_diagrams.md#5-get-researchresearch_idstatus---lấy-trạng-thái-hiện-tại-của-yêu-cầu-nghiên-cứu)
 
 3. Theo dõi tiến trình chi tiết:
 ```
 GET /research/{research_id}/progress
 ```
+[Chi tiết API →](docs/api.md#lấy-thông-tin-tiến-độ-chi-tiết) | [Sequence diagram →](docs/sequence_diagrams.md#6-get-researchresearch_idprogress---lấy-thông-tin-tiến-độ-chi-tiết)
 
 4. Lấy kết quả nghiên cứu:
 ```
 GET /research/{research_id}
 ```
+[Chi tiết API →](docs/api.md#lấy-thông-tin-và-kết-quả-nghiên-cứu) | [Sequence diagram →](docs/sequence_diagrams.md#4-get-researchresearch_id---lấy-thông-tin-và-kết-quả-nghiên-cứu)
 
 5. Chỉ thực hiện giai đoạn chỉnh sửa (sử dụng dữ liệu có sẵn):
 ```
 POST /research/edit_only
 ```
+[Chi tiết API →](docs/api.md#chỉ-thực-hiện-giai-đoạn-chỉnh-sửa) | [Sequence diagram →](docs/sequence_diagrams.md#3-post-researchedit_only---chỉnh-sửa-nội-dung-nghiên-cứu-sẵn-có)
+
 Body:
 ```json
 {
-  "task_id": "id_của_task_đã_có"
+  "task_id": "id_của_nghiên_cứu_đã_có"
+}
+```
+
+6. Tạo và thực hiện yêu cầu nghiên cứu hoàn chỉnh (tự động):
+```
+POST /research/complete
+```
+[Chi tiết API →](docs/api.md#tạo-yêu-cầu-nghiên-cứu-hoàn-chỉnh-tự-động) | [Sequence diagram →](docs/sequence_diagrams.md#2-post-researchcomplete---tạo-yêu-cầu-nghiên-cứu-hoàn-chỉnh-tự-động)
+
+Body:
+```json
+{
+  "query": "Chủ đề cần nghiên cứu"
 }
 ```
 
@@ -276,6 +296,12 @@ curl -X GET "http://localhost:8000/research/{task_id}"
 ```
 
 ## Các cải tiến mới
+
+### Quy trình nghiên cứu tự động hoàn chỉnh
+- Endpoint mới `/research/complete` cho phép thực hiện toàn bộ quy trình từ đầu đến cuối với một lần gọi API
+- Tự động phát hiện khi nghiên cứu hoàn thành và chuyển sang giai đoạn chỉnh sửa
+- Theo dõi tiến độ chi tiết xuyên suốt qua các giai đoạn
+- Tự động xử lý quá trình lưu trữ và đăng kết quả lên GitHub
 
 ### Theo dõi tiến độ chi tiết
 - Thêm trường `progress_info` trong `ResearchResponse` để cung cấp thông tin chi tiết về tiến độ
@@ -348,3 +374,12 @@ python test_research_phase2.py
 ## License
 
 MIT License - xem [LICENSE](LICENSE) để biết thêm chi tiết.
+
+## Tài liệu
+
+Hệ thống được cung cấp kèm theo các tài liệu chi tiết để giúp bạn hiểu rõ và sử dụng hiệu quả:
+
+- [Tài liệu API](docs/api.md) - Chi tiết về các endpoints API, cách sử dụng và mô tả response/request
+- [Sequence Diagrams](docs/sequence_diagrams.md) - Biểu đồ tuần tự mô tả luồng tương tác giữa các thành phần
+- [Mô hình dữ liệu](docs/api.md#mô-hình-dữ-liệu) - Chi tiết về cấu trúc dữ liệu được sử dụng
+- [Quy trình nghiên cứu](docs/api.md#quy-trình-nghiên-cứu-cải-tiến) - Mô tả chi tiết về quy trình hoạt động
