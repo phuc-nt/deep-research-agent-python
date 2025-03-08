@@ -394,36 +394,130 @@ Deep Research Agent có thể được chạy dễ dàng bằng Docker. Dưới 
 
 ### Cài đặt và chạy
 
-1. **Sao chép file .env.example thành .env và cấu hình các biến môi trường:**
+1. **Clone repository:**
+   ```bash
+   git clone https://github.com/yourusername/deep-research-agent.git
+   cd deep-research-agent
+   ```
+
+2. **Sao chép file .env.example thành .env và cấu hình các biến môi trường:**
    ```bash
    cp .env.example .env
    ```
-   Mở file .env và cập nhật các API keys và cấu hình khác.
-
-2. **Xây dựng và chạy container với Docker Compose:**
-   ```bash
-   docker-compose up -d
+   Mở file .env và cập nhật các API keys và cấu hình khác:
    ```
-   Lệnh này sẽ xây dựng image và chạy container trong chế độ detached.
-
-3. **Kiểm tra logs:**
-   ```bash
-   docker-compose logs -f
+   # API Keys
+   OPENAI_API_KEY=your_openai_api_key
+   ANTHROPIC_API_KEY=your_anthropic_api_key
+   GOOGLE_API_KEY=your_google_api_key
+   GOOGLE_CSE_ID=your_google_cse_id
+   
+   # GitHub Configuration
+   GITHUB_ACCESS_TOKEN=your_github_access_token
+   GITHUB_USERNAME=your_github_username
+   GITHUB_REPO=your_github_repo
    ```
 
-4. **Dừng container:**
+3. **Xây dựng và chạy container với Docker Compose:**
    ```bash
-   docker-compose down
+   docker compose up -d --build
+   ```
+   Lệnh này sẽ:
+   - Xây dựng image từ Dockerfile
+   - Tạo và chạy container trong chế độ detached (chạy nền)
+   - Cấu hình volumes cho dữ liệu và logs
+   - Thiết lập biến môi trường từ file .env
+
+4. **Kiểm tra logs:**
+   ```bash
+   docker compose logs -f
+   ```
+   Sử dụng flag `-f` để theo dõi logs theo thời gian thực.
+
+5. **Kiểm tra trạng thái container:**
+   ```bash
+   docker compose ps
+   ```
+
+6. **Truy cập API:**
+   - API có sẵn tại: http://localhost:8000/api/v1
+   - Swagger UI: http://localhost:8000/docs
+   - ReDoc: http://localhost:8000/redoc
+
+7. **Dừng container:**
+   ```bash
+   docker compose down
    ```
 
 ### Quản lý dữ liệu
 
 Dữ liệu nghiên cứu được lưu trữ trong thư mục `./data` trên máy host, được mount vào container. Điều này đảm bảo dữ liệu được giữ lại ngay cả khi container bị xóa.
 
+Cấu trúc thư mục dữ liệu:
+```
+data/
+├── research_tasks/          # Thư mục chứa dữ liệu nghiên cứu
+│   ├── {task_id}/          # Thư mục của mỗi task
+│   │   ├── task.json       # Thông tin cơ bản của task
+│   │   ├── outline.json    # Dàn ý nghiên cứu
+│   │   ├── sections.json   # Nội dung các phần đã nghiên cứu
+│   │   └── result.json     # Kết quả cuối cùng
+```
+
+### Xử lý lỗi phổ biến
+
+1. **Lỗi "command not found: docker-compose"**:
+   - Sử dụng `docker compose` (có khoảng cách) thay vì `docker-compose` trong Docker mới.
+
+2. **Lỗi "executable file not found in $PATH"**:
+   - Đảm bảo tất cả dependencies đã được liệt kê trong requirements.txt.
+   - Kiểm tra xem uvicorn và fastapi đã được thêm vào requirements.txt chưa.
+
+3. **Lỗi kết nối API**:
+   - Kiểm tra xem container có đang chạy không với lệnh `docker compose ps`.
+   - Kiểm tra logs với lệnh `docker compose logs`.
+   - Đảm bảo cổng 8000 không bị sử dụng bởi ứng dụng khác.
+
+4. **Lỗi API keys**:
+   - Đảm bảo tất cả API keys đã được cấu hình đúng trong file .env.
+   - Kiểm tra logs để xem lỗi xác thực API.
+
 ### Cấu hình nâng cao
 
 Bạn có thể điều chỉnh cấu hình trong file `docker-compose.yml` để phù hợp với nhu cầu của mình:
 
-- Thay đổi cổng: Chỉnh sửa `ports: - "8000:8000"` thành cổng mong muốn
-- Thay đổi biến môi trường: Cập nhật phần `environment` hoặc file `.env`
-- Thêm volumes: Cấu hình thêm volumes nếu cần
+- **Thay đổi cổng**: Chỉnh sửa `ports: - "8000:8000"` thành cổng mong muốn
+- **Thay đổi biến môi trường**: Cập nhật phần `environment` hoặc file `.env`
+- **Thêm volumes**: Cấu hình thêm volumes nếu cần
+- **Tùy chỉnh healthcheck**: Điều chỉnh các tham số healthcheck để phù hợp với môi trường
+
+### Build từ source code
+
+Nếu bạn muốn build từ source code mà không sử dụng Docker:
+
+1. **Cài đặt Python 3.11**:
+   ```bash
+   # Ubuntu/Debian
+   sudo apt-get update
+   sudo apt-get install python3.11 python3.11-venv
+   
+   # macOS
+   brew install python@3.11
+   ```
+
+2. **Tạo và kích hoạt môi trường ảo**:
+   ```bash
+   python3.11 -m venv venv
+   source venv/bin/activate  # Linux/macOS
+   venv\Scripts\activate     # Windows
+   ```
+
+3. **Cài đặt dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. **Chạy ứng dụng**:
+   ```bash
+   uvicorn app.api.main:app --host 0.0.0.0 --port 8000 --reload
+   ```
