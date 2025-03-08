@@ -17,13 +17,15 @@ class ClaudeService(BaseLLMService):
         self.temperature = settings.TEMPERATURE
 
     async def generate(self, prompt: str) -> str:
-        """Generate text using Claude"""
+        """Generate text using Claude API"""
         response = await self.client.messages.create(
-            model=self.model,
+            model="claude-3-sonnet-20240229",
             max_tokens=self.max_tokens,
-            temperature=self.temperature,
-            messages=[{"role": "user", "content": prompt}]
+            messages=[
+                {"role": "user", "content": prompt}
+            ]
         )
+        
         return response.content[0].text
         
     async def stream(self, prompt: str, **kwargs: Dict[str, Any]) -> str:

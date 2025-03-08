@@ -15,6 +15,7 @@ class ResearchSection(BaseModel):
     title: str
     description: str
     content: Optional[str] = None
+    sources: Optional[List[str]] = None
 
 class ResearchOutline(BaseModel):
     """Model cho dàn ý nghiên cứu"""
