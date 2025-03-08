@@ -1,6 +1,8 @@
 # Core
 pydantic==2.6.3
 pydantic-settings==2.2.1
+fastapi==0.110.0
+uvicorn==0.27.1
 
 # LLM Services
 openai==1.12.0
