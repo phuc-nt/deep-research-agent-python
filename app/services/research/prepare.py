@@ -41,7 +41,13 @@ class PrepareService(BasePreparePhase):
         try:
             # Khởi tạo search service tại đây để có thể await
             service_factory = get_service_factory()
-            self.search_service = await service_factory.create_search_service()
+            try:
+                self.search_service = await service_factory.create_search_service()
+                logger.info(f"Đã khởi tạo search service: {self.search_service.__class__.__name__}")
+            except Exception as e:
+                logger.error(f"Không thể khởi tạo search service: {str(e)}")
+                logger.warning("Tiếp tục quy trình mà không có search service")
+                self.search_service = None
             
             logger.info(f"=== BẮT ĐẦU PHASE CHUẨN BỊ ===")
             logger.info(f"Bắt đầu chuẩn bị nghiên cứu cho topic: {request.topic}")
@@ -139,9 +145,28 @@ class PrepareService(BasePreparePhase):
             
             # Phân tích kết quả
             try:
-                # Thử parse JSON
-                analysis = json.loads(response)
-                logger.info("Đã parse JSON thành công")
+                # Thử parse JSON trực tiếp
+                try:
+                    analysis = json.loads(response)
+                    logger.info("Đã parse JSON thành công")
+                except json.JSONDecodeError:
+                    # Thử tìm JSON trong chuỗi văn bản
+                    logger.info("Không thể parse JSON trực tiếp, thử tìm JSON trong chuỗi văn bản")
+                    json_pattern = r'```(?:json)?\s*(\{.*?\})\s*```'
+                    json_matches = re.findall(json_pattern, response, re.DOTALL)
+                    
+                    if json_matches:
+                        # Lấy phần JSON đầu tiên tìm thấy
+                        json_str = json_matches[0]
+                        try:
+                            analysis = json.loads(json_str)
+                            logger.info("Đã trích xuất và parse JSON từ phản hồi")
+                        except json.JSONDecodeError:
+                            logger.warning("Không thể parse JSON trích xuất từ phản hồi, thử phân tích thủ công")
+                            analysis = self._manual_parse_analysis(response)
+                    else:
+                        logger.warning("Không tìm thấy JSON trong phản hồi, thử phân tích thủ công")
+                        analysis = self._manual_parse_analysis(response)
                 
                 # Chuẩn hóa keys
                 if "Topic" in analysis and "topic" not in analysis:
@@ -155,8 +180,9 @@ class PrepareService(BasePreparePhase):
                 if not self._validate_analysis_relevance(analysis, query):
                     logger.warning("Kết quả phân tích không liên quan đến yêu cầu, thử phân tích thủ công")
                     analysis = self._manual_parse_analysis(response)
-            except json.JSONDecodeError:
-                logger.warning("Không thể parse JSON, thử phân tích thủ công")
+            except Exception as e:
+                logger.warning(f"Lỗi khi xử lý phản hồi từ LLM: {str(e)}")
+                logger.warning("Thử phân tích thủ công")
                 analysis = self._manual_parse_analysis(response)
             
             # Đảm bảo có đủ các trường cần thiết
@@ -245,6 +271,52 @@ class PrepareService(BasePreparePhase):
         Returns:
             Dict[str, Any]: Kết quả phân tích
         """
+        # Thử tìm và trích xuất JSON từ phản hồi một lần nữa với các pattern khác
+        try:
+            # Tìm JSON với các pattern khác nhau
+            json_patterns = [
+                r'\{[^{]*"topic"[^}]*\}',
+                r'\{[^{]*"Topic"[^}]*\}',
+                r'\{[^{]*"scope"[^}]*\}',
+                r'\{[^{]*"Scope"[^}]*\}'
+            ]
+            
+            for pattern in json_patterns:
+                json_matches = re.findall(pattern, response, re.DOTALL | re.IGNORECASE)
+                if json_matches:
+                    # Lấy phần JSON đầu tiên tìm thấy
+                    json_str = json_matches[0]
+                    try:
+                        # Thử parse JSON
+                        data = json.loads(json_str)
+                        logger.info("Đã trích xuất và parse JSON từ phản hồi với pattern thay thế")
+                        
+                        # Chuẩn hóa keys
+                        analysis = {}
+                        if "Topic" in data:
+                            analysis["topic"] = data["Topic"]
+                        elif "topic" in data:
+                            analysis["topic"] = data["topic"]
+                            
+                        if "Scope" in data:
+                            analysis["scope"] = data["Scope"]
+                        elif "scope" in data:
+                            analysis["scope"] = data["scope"]
+                            
+                        if "Target Audience" in data:
+                            analysis["target_audience"] = data["Target Audience"]
+                        elif "target_audience" in data:
+                            analysis["target_audience"] = data["target_audience"]
+                            
+                        # Kiểm tra xem có đủ thông tin không
+                        if "topic" in analysis:
+                            return analysis
+                    except json.JSONDecodeError:
+                        pass
+        except Exception as e:
+            logger.warning(f"Lỗi khi trích xuất JSON với pattern thay thế: {str(e)}")
+        
+        # Nếu không tìm thấy JSON hợp lệ, phân tích thủ công
         analysis = {}
         
         # Tìm Topic/Chủ đề
@@ -287,25 +359,45 @@ class PrepareService(BasePreparePhase):
         try:
             logger.info("Tạo dàn ý với LLM")
             
-            # Tìm kiếm thông tin liên quan
+            # Khởi tạo search_results
+            search_results = []
+            
+            # Tìm kiếm thông tin liên quan nếu search_service khả dụng
             search_query = f"{request.topic} {request.scope}"
             logger.info(f"Tìm kiếm thông tin liên quan với query: {search_query}")
             
-            # Gọi search API
-            search_results = await self.search_service.search(
-                query=search_query,
-                task_id=task_id,
-                purpose="search_for_outline"
-            )
-            logger.info(f"Tìm thấy {len(search_results)} kết quả liên quan")
+            # Kiểm tra search_service trước khi sử dụng
+            if self.search_service is not None:
+                try:
+                    # Gọi search API
+                    search_results = await self.search_service.search(
+                        query=search_query,
+                        task_id=task_id,
+                        purpose="search_for_outline"
+                    )
+                    logger.info(f"Tìm thấy {len(search_results)} kết quả liên quan")
+                except Exception as search_error:
+                    logger.error(f"Lỗi khi tìm kiếm thông tin: {str(search_error)}")
+                    # Tiếp tục với search_results rỗng
+                    search_results = []
+            else:
+                logger.warning("Search service không khả dụng, tiếp tục tạo dàn ý mà không có kết quả tìm kiếm")
             
-            # Tạo prompt
-            prompt = self.prompts.CREATE_OUTLINE.format(
-                topic=request.topic,
-                scope=request.scope,
-                target_audience=request.target_audience,
-                search_results=json.dumps(search_results[:5], ensure_ascii=False)
-            )
+            # Tạo prompt với hoặc không có search_results
+            if search_results:
+                prompt = self.prompts.CREATE_OUTLINE.format(
+                    topic=request.topic,
+                    scope=request.scope,
+                    target_audience=request.target_audience,
+                    search_results=json.dumps(search_results[:5], ensure_ascii=False)
+                )
+            else:
+                # Sử dụng prompt đặc biệt khi không có search_results
+                prompt = self.prompts.CREATE_OUTLINE_WITHOUT_SEARCH.format(
+                    topic=request.topic,
+                    scope=request.scope,
+                    target_audience=request.target_audience
+                )
             
             # Gọi LLM để tạo dàn ý
             logger.info(f"Gửi prompt tạo dàn ý đến LLM: {prompt[:100]}...")
@@ -318,16 +410,56 @@ class PrepareService(BasePreparePhase):
             
             # Phân tích kết quả
             try:
-                # Thử parse JSON
-                outline_data = json.loads(response)
-                logger.info("Đã parse JSON thành công")
+                # Thử parse JSON trực tiếp
+                try:
+                    outline_data = json.loads(response)
+                    logger.info("Đã parse JSON thành công")
+                except json.JSONDecodeError:
+                    # Thử tìm JSON trong chuỗi văn bản
+                    logger.info("Không thể parse JSON trực tiếp, thử tìm JSON trong chuỗi văn bản")
+                    json_pattern = r'```(?:json)?\s*(\{.*?\})\s*```'
+                    json_matches = re.findall(json_pattern, response, re.DOTALL)
+                    
+                    if json_matches:
+                        # Lấy phần JSON đầu tiên tìm thấy
+                        json_str = json_matches[0]
+                        try:
+                            outline_data = json.loads(json_str)
+                            logger.info("Đã trích xuất và parse JSON từ phản hồi")
+                        except json.JSONDecodeError:
+                            logger.warning("Không thể parse JSON trích xuất từ phản hồi, thử phân tích thủ công")
+                            outline_data = self._manual_parse_outline(response)
+                    else:
+                        logger.warning("Không tìm thấy JSON trong phản hồi, thử phân tích thủ công")
+                        outline_data = self._manual_parse_outline(response)
+                
+                # Kiểm tra cấu trúc JSON
+                if "researchSections" in outline_data:
+                    # Chuyển đổi từ researchSections sang sections
+                    sections_data = []
+                    for section in outline_data["researchSections"]:
+                        sections_data.append({
+                            "title": section.get("title", ""),
+                            "description": section.get("description", "")
+                        })
+                    outline_data = {"sections": sections_data}
+                
+                # Đảm bảo outline_data có trường sections
+                if "sections" not in outline_data:
+                    logger.warning("JSON không có trường sections, tạo cấu trúc mặc định")
+                    outline_data = {"sections": [
+                        {"title": "Giới thiệu", "description": "Giới thiệu về chủ đề nghiên cứu"},
+                        {"title": "Phân tích", "description": "Phân tích các khía cạnh của chủ đề"},
+                        {"title": "Kết luận", "description": "Kết luận và đề xuất"}
+                    ]}
                 
                 # Kiểm tra tính hợp lệ
                 if not self._validate_outline_relevance(outline_data, request.query):
                     logger.warning("Dàn ý không liên quan đến yêu cầu, thử phân tích thủ công")
                     outline_data = self._manual_parse_outline(response)
-            except json.JSONDecodeError:
-                logger.warning("Không thể parse JSON, thử phân tích thủ công")
+            except Exception as e:
+                logger.warning(f"Lỗi khi xử lý phản hồi từ LLM: {str(e)}")
+                logger.warning("Thử phân tích thủ công")
                 outline_data = self._manual_parse_outline(response)
             
             # Tạo đối tượng ResearchOutline
@@ -457,11 +589,54 @@ class PrepareService(BasePreparePhase):
         Returns:
             Dict[str, Any]: Dữ liệu dàn ý
         """
+        # Thử tìm và trích xuất JSON từ phản hồi
+        try:
+            # Tìm JSON trong chuỗi văn bản
+            json_pattern = r'```(?:json)?\s*(\{.*?\})\s*```'
+            json_matches = re.findall(json_pattern, response, re.DOTALL)
+            
+            if json_matches:
+                # Lấy phần JSON đầu tiên tìm thấy
+                json_str = json_matches[0]
+                try:
+                    # Thử parse JSON
+                    data = json.loads(json_str)
+                    logger.info("Đã trích xuất và parse JSON từ phản hồi")
+                    
+                    # Kiểm tra cấu trúc JSON
+                    if "researchSections" in data:
+                        # Chuyển đổi từ researchSections sang sections
+                        sections = []
+                        for section in data["researchSections"]:
+                            sections.append({
+                                "title": section.get("title", ""),
+                                "description": section.get("description", "")
+                            })
+                        return {"sections": sections}
+                    elif "sections" in data:
+                        return data
+                    else:
+                        logger.warning("JSON không có trường sections hoặc researchSections")
+                except json.JSONDecodeError:
+                    logger.warning("Không thể parse JSON trích xuất từ phản hồi")
+        except Exception as e:
+            logger.warning(f"Lỗi khi trích xuất JSON: {str(e)}")
+        
+        # Nếu không tìm thấy JSON hợp lệ, phân tích thủ công
         outline_data = {"sections": []}
         
         # Tìm các phần trong dàn ý
         lines = response.split("\n")
         current_section = None
+        
+        # Tìm các mẫu tiêu đề phần phổ biến
+        title_patterns = [
+            r'^\s*#+\s+(.+)$',  # Markdown headers: # Title, ## Title
+            r'^\s*\d+\.\s+(.+)$',  # Numbered list: 1. Title
+            r'^\s*[-*]\s+(.+)$',  # Bullet list: - Title, * Title
+            r'^\s*"title":\s*"(.+)"',  # JSON format: "title": "Title"
+            r'^\s*title:\s*(.+)$',  # YAML format: title: Title
+        ]
         
         for line in lines:
             line = line.strip()
@@ -470,18 +645,27 @@ class PrepareService(BasePreparePhase):
             if not line:
                 continue
             
-            # Tìm tiêu đề phần
-            if line.startswith("##") or line.startswith("- ") or line.startswith("* ") or line.startswith("1. ") or line.startswith("2. "):
+            # Kiểm tra xem dòng có phải là tiêu đề không
+            is_title = False
+            title = ""
+            
+            for pattern in title_patterns:
+                match = re.match(pattern, line)
+                if match:
+                    is_title = True
+                    title = match.group(1).strip()
+                    break
+            
+            if is_title:
                 # Nếu đã có phần hiện tại, thêm vào danh sách
                 if current_section:
                     outline_data["sections"].append(current_section)
                 
                 # Tạo phần mới
-                title = line.lstrip("#-*0123456789. ").strip()
                 current_section = {"title": title, "description": ""}
             
             # Nếu không phải tiêu đề và đã có phần hiện tại, thêm vào mô tả
-            elif current_section:
+            elif current_section and not line.startswith("{") and not line.startswith("}") and not line.startswith('"'):
                 if current_section["description"]:
                     current_section["description"] += " " + line
                 else:

@@ -282,16 +282,37 @@ class EditService(BaseEditPhase):
             logger.info("Bắt đầu tạo tiêu đề...")
             logger.info(f"EditService.create_title: task_id = {task_id}")
             
+            # Kiểm tra content
+            if not content or len(content.strip()) == 0:
+                logger.warning("Content trống, không thể tạo tiêu đề")
+                return context.get("topic", "Không có tiêu đề")
+            
+            # Kiểm tra context
+            if not context:
+                logger.warning("Context trống, không thể tạo tiêu đề")
+                return "Không có tiêu đề"
+            
+            # Kiểm tra các trường cần thiết trong context
+            required_fields = ["topic", "scope", "target_audience"]
+            for field in required_fields:
+                if field not in context:
+                    logger.warning(f"Thiếu trường {field} trong context, sử dụng giá trị mặc định")
+                    context[field] = "Không xác định"
+            
             # Lấy đoạn đầu của nội dung để tạo tiêu đề
             content_preview = content[:2000]  # Lấy 2000 ký tự đầu tiên
             
             # Tạo prompt
-            prompt = self.prompts.CREATE_TITLE.format(
-                topic=context["topic"],
-                scope=context["scope"],
-                target_audience=context["target_audience"],
-                content_preview=content_preview
-            )
+            try:
+                prompt = self.prompts.CREATE_TITLE.format(
+                    topic=context["topic"],
+                    scope=context["scope"],
+                    target_audience=context["target_audience"],
+                    content=content_preview
+                )
+            except KeyError as format_error:
+                logger.error(f"Lỗi khi tạo prompt: {str(format_error)}")
+                return context.get("topic", "Không có tiêu đề")
             
             # Gọi LLM để tạo tiêu đề
             logger.info(f"Gửi prompt tạo tiêu đề đến LLM: {prompt[:100]}...")
@@ -313,21 +334,49 @@ class EditService(BaseEditPhase):
                 
                 # Kiểm tra xem kết quả có phải là JSON không
                 try:
+                    # Thử parse JSON
                     title_data = json.loads(title)
+                    
+                    # Kiểm tra nếu là dict
                     if isinstance(title_data, dict):
                         logger.info(f"Phản hồi là JSON với các trường: {list(title_data.keys())}")
+                        
                         # Kiểm tra các trường có thể chứa tiêu đề
+                        found_title = False
                         for field in ["title", "text", "result", "content"]:
                             if field in title_data and title_data[field]:
                                 title = title_data[field]
                                 logger.info(f"Đã trích xuất tiêu đề từ JSON với trường '{field}'")
+                                found_title = True
                                 break
+                        
+                        # Nếu không tìm thấy trường nào phù hợp, sử dụng giá trị đầu tiên
+                        if not found_title and title_data:
+                            first_key = list(title_data.keys())[0]
+                            if title_data[first_key] and isinstance(title_data[first_key], str):
+                                title = title_data[first_key]
+                                logger.info(f"Sử dụng giá trị từ trường đầu tiên '{first_key}' làm tiêu đề")
+                    
                 except json.JSONDecodeError:
                     # Nếu không phải JSON, sử dụng toàn bộ phản hồi
                     logger.info("Phản hồi không phải là JSON, sử dụng toàn bộ phản hồi")
+                except KeyError as key_error:
+                    # Xử lý lỗi khi truy cập key không tồn tại trong JSON
+                    logger.error(f"Lỗi KeyError khi xử lý JSON: {str(key_error)}")
+                    # Vẫn sử dụng phản hồi gốc
+                    logger.info("Sử dụng phản hồi gốc do lỗi KeyError trong JSON")
+                except Exception as json_error:
+                    # Bắt các lỗi khác khi xử lý JSON
+                    logger.error(f"Lỗi khi xử lý JSON: {str(json_error)}")
+                    # Vẫn sử dụng phản hồi gốc
+                    logger.info("Sử dụng phản hồi gốc do lỗi khi xử lý JSON")
                 
                 # Loại bỏ dấu ngoặc kép nếu có
-                title = title.strip('"')
+                if isinstance(title, str):
+                    title = title.strip('"')
+                else:
+                    logger.warning(f"Title không phải là string mà là {type(title)}, chuyển đổi sang string")
+                    title = str(title).strip('"')
                 
                 # Kiểm tra tiêu đề rỗng
                 if not title or len(title.strip()) == 0:
@@ -340,13 +389,18 @@ class EditService(BaseEditPhase):
                 # Ghi lại phản hồi nếu có
                 if response:
                     logger.error(f"Phản hồi LLM trước khi xảy ra lỗi: {response[:100]}...")
-                raise llm_error
+                return context.get("topic", "Không có tiêu đề")
             
+        except KeyError as key_error:
+            # Xử lý lỗi khi truy cập key không tồn tại
+            logger.error(f"Lỗi KeyError khi tạo tiêu đề: {str(key_error)}")
+            logger.info(f"Sử dụng tiêu đề mặc định do lỗi KeyError: {context.get('topic', 'Không có tiêu đề')}")
+            return context.get("topic", "Không có tiêu đề")
         except Exception as e:
             logger.error(f"Lỗi khi tạo tiêu đề: {str(e)}")
             # Trả về tiêu đề mặc định nếu có lỗi
-            logger.info(f"Sử dụng tiêu đề mặc định do lỗi: {context['topic']}")
-            return context["topic"]
+            logger.info(f"Sử dụng tiêu đề mặc định do lỗi: {context.get('topic', 'Không có tiêu đề')}")
+            return context.get("topic", "Không có tiêu đề")
     
     def _collect_sources(self, sections: List[ResearchSection]) -> List[str]:
         """

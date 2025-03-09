@@ -87,19 +87,29 @@ class PreparePrompts:
     2. Phạm vi (Scope): Phạm vi và giới hạn của nghiên cứu
     3. Đối tượng độc giả (Target Audience): Nhóm đối tượng mục tiêu của nghiên cứu
     
+    ĐỊNH DẠNG PHẢN HỒI:
+    1. Phản hồi của bạn PHẢI là một đối tượng JSON hợp lệ, không có bất kỳ văn bản nào khác.
+    2. KHÔNG bao gồm markdown, giải thích, hoặc bất kỳ nội dung nào khác ngoài JSON.
+    3. KHÔNG sử dụng dấu backtick (```) hoặc định dạng markdown cho JSON.
+    4. JSON phải có cấu trúc chính xác như mẫu dưới đây.
+    
     Trả về kết quả dưới dạng JSON có cấu trúc như sau:
     {{
-        "Topic": "Chủ đề của nghiên cứu",
-        "Scope": "Phạm vi của nghiên cứu",
-        "Target Audience": "Đối tượng độc giả"
+        "topic": "Chủ đề của nghiên cứu",
+        "scope": "Phạm vi của nghiên cứu",
+        "target_audience": "Đối tượng độc giả"
     }}
-    
-    Chỉ trả về JSON, không thêm text khác.
     """
 
     CREATE_OUTLINE: str = """
     Tạo dàn ý cho yêu cầu nghiên cứu sau đây:
-    {query}
+    
+    Chủ đề: {topic}
+    Phạm vi: {scope}
+    Đối tượng độc giả: {target_audience}
+    
+    Dưới đây là một số kết quả tìm kiếm liên quan đến chủ đề:
+    {search_results}
     
     Hãy tạo một dàn ý nghiên cứu chi tiết bao gồm các phần logic và có cấu trúc rõ ràng.
     
@@ -109,9 +119,15 @@ class PreparePrompts:
     3. KHÔNG sử dụng các tiêu đề chung chung như "Giới thiệu", "Phương pháp nghiên cứu", "Kết luận" mà không có thông tin cụ thể về chủ đề.
     4. Mỗi tiêu đề phần phải chứa các từ khóa liên quan trực tiếp đến chủ đề nghiên cứu.
     
+    ĐỊNH DẠNG PHẢN HỒI:
+    1. Phản hồi của bạn PHẢI là một đối tượng JSON hợp lệ, không có bất kỳ văn bản nào khác.
+    2. KHÔNG bao gồm markdown, giải thích, hoặc bất kỳ nội dung nào khác ngoài JSON.
+    3. KHÔNG sử dụng dấu backtick (```) hoặc định dạng markdown cho JSON.
+    4. JSON phải có cấu trúc chính xác như mẫu dưới đây.
+    
     Trả về kết quả dưới dạng JSON có cấu trúc như sau:
     {{
-        "researchSections": [
+        "sections": [
             {{
                 "title": "Tiêu đề phần 1 (phải liên quan trực tiếp đến chủ đề)",
                 "description": "Mô tả ngắn gọn về nội dung phần 1, nêu rõ các điểm chính sẽ được đề cập"
@@ -119,21 +135,47 @@ class PreparePrompts:
             {{
                 "title": "Tiêu đề phần 2 (phải liên quan trực tiếp đến chủ đề)",
                 "description": "Mô tả ngắn gọn về nội dung phần 2, nêu rõ các điểm chính sẽ được đề cập"
-            }},
-            ...thêm các phần khác nếu cần
+            }}
         ]
     }}
+    """
+
+    CREATE_OUTLINE_WITHOUT_SEARCH: str = """
+    Tạo dàn ý cho yêu cầu nghiên cứu sau đây:
     
-    Mỗi phần nên có tiêu đề rõ ràng và mô tả ngắn gọn về nội dung sẽ đề cập.
-    Tổng số phần nên từ 3-5 phần, bao gồm phần giới thiệu và kết luận.
+    Chủ đề: {topic}
+    Phạm vi: {scope}
+    Đối tượng độc giả: {target_audience}
     
-    Ví dụ, nếu chủ đề là "Bất công trong thu nhập ở Việt Nam", các tiêu đề phần có thể là:
-    - "Thực trạng bất bình đẳng thu nhập tại Việt Nam hiện nay"
-    - "Nguyên nhân dẫn đến bất công trong phân phối thu nhập ở Việt Nam"
-    - "Tác động của bất bình đẳng thu nhập đến phát triển kinh tế-xã hội Việt Nam"
-    - "Giải pháp giảm thiểu bất công trong thu nhập tại Việt Nam"
+    Hãy tạo một dàn ý nghiên cứu chi tiết bao gồm các phần logic và có cấu trúc rõ ràng. Vì không có kết quả tìm kiếm từ internet, hãy sử dụng kiến thức sẵn có của bạn để tạo dàn ý chất lượng cao nhất có thể.
     
-    Chỉ trả về JSON, không thêm text khác.
+    LƯU Ý QUAN TRỌNG: 
+    1. Dàn ý PHẢI tập trung vào chủ đề cụ thể được yêu cầu, KHÔNG tạo dàn ý chung chung về quy trình nghiên cứu.
+    2. Mỗi phần trong dàn ý phải liên quan trực tiếp đến chủ đề, với tiêu đề cụ thể phản ánh nội dung của phần đó.
+    3. KHÔNG sử dụng các tiêu đề chung chung như "Giới thiệu", "Phương pháp nghiên cứu", "Kết luận" mà không có thông tin cụ thể về chủ đề.
+    4. Mỗi tiêu đề phần phải chứa các từ khóa liên quan trực tiếp đến chủ đề nghiên cứu.
+    5. Tạo ít nhất 5 phần để đảm bảo nghiên cứu đủ chi tiết và toàn diện.
+    6. Đảm bảo các phần có tính liên kết và logic, tạo thành một bài nghiên cứu hoàn chỉnh.
+    
+    ĐỊNH DẠNG PHẢN HỒI:
+    1. Phản hồi của bạn PHẢI là một đối tượng JSON hợp lệ, không có bất kỳ văn bản nào khác.
+    2. KHÔNG bao gồm markdown, giải thích, hoặc bất kỳ nội dung nào khác ngoài JSON.
+    3. KHÔNG sử dụng dấu backtick (```) hoặc định dạng markdown cho JSON.
+    4. JSON phải có cấu trúc chính xác như mẫu dưới đây.
+    
+    Trả về kết quả dưới dạng JSON có cấu trúc như sau:
+    {{
+        "sections": [
+            {{
+                "title": "Tiêu đề phần 1 (phải liên quan trực tiếp đến chủ đề)",
+                "description": "Mô tả ngắn gọn về nội dung phần 1, nêu rõ các điểm chính sẽ được đề cập"
+            }},
+            {{
+                "title": "Tiêu đề phần 2 (phải liên quan trực tiếp đến chủ đề)",
+                "description": "Mô tả ngắn gọn về nội dung phần 2, nêu rõ các điểm chính sẽ được đề cập"
+            }}
+        ]
+    }}
     """
 
 
@@ -230,7 +272,7 @@ class EditPrompts:
     3. Thu hút sự chú ý của đối tượng đọc
     4. Viết bằng tiếng Việt
     
-    Chỉ trả về tiêu đề, không thêm giải thích hay định dạng khác.
+    QUAN TRỌNG: Chỉ trả về tiêu đề dạng text thuần túy, KHÔNG trả về JSON, KHÔNG thêm giải thích hay định dạng khác.
     """
 
 

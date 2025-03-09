@@ -71,22 +71,40 @@ class ServiceFactory:
         
         try:
             if provider == "perplexity":
+                # Kiểm tra API key trước khi khởi tạo service
+                if not self.config.PERPLEXITY_API_KEY or self.config.PERPLEXITY_API_KEY == "your_perplexity_api_key":
+                    logger.error("PERPLEXITY_API_KEY không hợp lệ hoặc chưa được cấu hình")
+                    raise ValueError("PERPLEXITY_API_KEY không hợp lệ hoặc chưa được cấu hình")
                 service = PerplexityService()
+                # Thử gọi một phương thức đơn giản để kiểm tra kết nối
+                logger.info(f"Đã khởi tạo Perplexity service với API key: {self.config.PERPLEXITY_API_KEY[:5]}...")
             elif provider == "google":
+                # Kiểm tra API key trước khi khởi tạo service
+                if not self.config.GOOGLE_API_KEY or self.config.GOOGLE_API_KEY == "your_google_api_key" or not self.config.GOOGLE_CSE_ID or self.config.GOOGLE_CSE_ID == "your_google_cse_id":
+                    logger.error("GOOGLE_API_KEY hoặc GOOGLE_CSE_ID không hợp lệ hoặc chưa được cấu hình")
+                    raise ValueError("GOOGLE_API_KEY hoặc GOOGLE_CSE_ID không hợp lệ hoặc chưa được cấu hình")
                 service = GoogleService()
+                logger.info(f"Đã khởi tạo Google service với API key: {self.config.GOOGLE_API_KEY[:5]}...")
             else:
                 logger.error(f"Không hỗ trợ search provider: {provider}")
                 # Fallback to default provider
-                return await self.get_search_service(self.config.DEFAULT_SEARCH_PROVIDER)
+                if provider != self.config.DEFAULT_SEARCH_PROVIDER:
+                    logger.info(f"Thử sử dụng provider mặc định: {self.config.DEFAULT_SEARCH_PROVIDER}")
+                    return await self.get_search_service(self.config.DEFAULT_SEARCH_PROVIDER)
+                else:
+                    raise ValueError(f"Không hỗ trợ search provider: {provider}")
             
             self.services[service_key] = service
             return service
         except Exception as e:
-            logger.error(f"Error creating search service for provider {provider}: {str(e)}")
+            logger.error(f"Lỗi khi tạo search service cho provider {provider}: {str(e)}")
             # Fallback to default provider if different
             if provider != self.config.DEFAULT_SEARCH_PROVIDER:
+                logger.info(f"Thử sử dụng provider mặc định: {self.config.DEFAULT_SEARCH_PROVIDER}")
                 return await self.get_search_service(self.config.DEFAULT_SEARCH_PROVIDER)
-            raise e
+            # Nếu đã là provider mặc định mà vẫn lỗi, trả về None
+            logger.error(f"Không thể tạo search service với provider mặc định: {str(e)}")
+            return None
     
     def get_storage_service(self, provider: Optional[str] = None) -> Any:
         """Get storage service instance by provider name"""

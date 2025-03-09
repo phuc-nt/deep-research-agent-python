@@ -765,6 +765,29 @@ class CostMonitoringService:
                 provider_data["output_tokens"] += req.output_tokens
         
         return summary
+        
+    async def get_cost_summary(self, task_id: str) -> CostSummary:
+        """
+        Lấy tổng hợp chi phí cho một task (phiên bản bất đồng bộ)
+        
+        Args:
+            task_id: ID của task
+            
+        Returns:
+            CostSummary: Tổng hợp chi phí
+        """
+        monitoring = self.get_monitoring(task_id)
+        
+        # Cập nhật summary trước khi trả về
+        summary = self._update_summary(monitoring)
+        
+        # Lưu dữ liệu monitoring
+        try:
+            await self.save_monitoring_data(task_id)
+        except Exception as e:
+            logger.error(f"Lỗi khi lưu dữ liệu monitoring trong get_cost_summary: {str(e)}")
+        
+        return summary
 
 # Singleton instance
 cost_service = None
