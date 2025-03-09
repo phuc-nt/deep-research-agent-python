@@ -1,4 +1,7 @@
 from typing import Type, Optional, Dict, Any
+import importlib
+from app.core.config import Settings
+from app.core.logging import get_logger
 
 from app.services.core.llm.base import BaseLLMService
 from app.services.core.search.base import BaseSearchService
@@ -15,107 +18,179 @@ from app.services.core.storage.file import FileStorageService
 from .config import get_settings
 from .exceptions import ConfigError
 
+logger = get_logger(__name__)
 
 class ServiceFactory:
     """Factory for creating service instances"""
-
-    @staticmethod
-    def create_llm_service(
-        provider: Optional[str] = None, 
-        model_name: Optional[str] = None,
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None
-    ) -> BaseLLMService:
-        """
-        Create an LLM service instance based on provider and model parameters
-        
-        Args:
-            provider: LLM provider (openai, claude). If None, uses default from settings
-            model_name: Model name to use. If None, uses default from settings
-            max_tokens: Maximum tokens. If None, uses default from settings
-            temperature: Temperature. If None, uses default from settings
-            
-        Returns:
-            BaseLLMService: LLM service instance
-        """
-        settings = get_settings()
-        provider = provider or settings.DEFAULT_LLM_PROVIDER
-        
-        # Create service based on provider
-        if provider == "openai":
-            service = OpenAIService()
-        elif provider == "claude":
-            service = ClaudeService()
-        else:
-            raise ConfigError(f"Unknown LLM provider: {provider}")
-        
-        # Override default parameters if specified
-        if model_name is not None:
-            service.model = model_name
-        if max_tokens is not None:
-            service.max_tokens = max_tokens
-        if temperature is not None:
-            service.temperature = temperature
-            
-        return service
     
-    @staticmethod
-    def create_llm_service_for_phase(phase: str) -> BaseLLMService:
+    def __init__(self, config: Settings):
+        self.config = config
+        self.services = {}
+    
+    def get_llm_service(self, provider: Optional[str] = None) -> Any:
+        """Get LLM service instance by provider name"""
+        provider = provider or self.config.DEFAULT_LLM_PROVIDER
+        service_key = f"llm_{provider}"
+        
+        if service_key in self.services:
+            return self.services[service_key]
+        
+        try:
+            module_name = f"app.services.core.llm.{provider.lower()}"
+            module = importlib.import_module(module_name)
+            
+            # Xử lý các trường hợp đặc biệt
+            if provider.lower() == "openai":
+                service_class_name = "OpenAIService"
+            elif provider.lower() == "claude":
+                service_class_name = "ClaudeService"
+            else:
+                service_class_name = f"{provider.capitalize()}Service"
+            
+            service_class = getattr(module, service_class_name)
+            
+            service = service_class(self.config.dict())
+            self.services[service_key] = service
+            
+            return service
+        except Exception as e:
+            logger.error(f"Error creating LLM service for provider {provider}: {str(e)}")
+            # Fallback to default provider if different
+            if provider != self.config.DEFAULT_LLM_PROVIDER:
+                logger.info(f"Falling back to default provider {self.config.DEFAULT_LLM_PROVIDER}")
+                return self.get_llm_service(self.config.DEFAULT_LLM_PROVIDER)
+            raise e
+    
+    async def get_search_service(self, provider: Optional[str] = None) -> Any:
+        """Get search service instance by provider name"""
+        provider = provider or self.config.DEFAULT_SEARCH_PROVIDER
+        service_key = f"search_{provider}"
+        
+        if service_key in self.services:
+            return self.services[service_key]
+        
+        try:
+            if provider == "perplexity":
+                service = PerplexityService()
+            elif provider == "google":
+                service = GoogleService()
+            else:
+                logger.error(f"Không hỗ trợ search provider: {provider}")
+                # Fallback to default provider
+                return await self.get_search_service(self.config.DEFAULT_SEARCH_PROVIDER)
+            
+            self.services[service_key] = service
+            return service
+        except Exception as e:
+            logger.error(f"Error creating search service for provider {provider}: {str(e)}")
+            # Fallback to default provider if different
+            if provider != self.config.DEFAULT_SEARCH_PROVIDER:
+                return await self.get_search_service(self.config.DEFAULT_SEARCH_PROVIDER)
+            raise e
+    
+    def get_storage_service(self, provider: Optional[str] = None) -> Any:
+        """Get storage service instance by provider name"""
+        provider = provider or self.config.DEFAULT_STORAGE_PROVIDER
+        service_key = f"storage_{provider}"
+        
+        if service_key in self.services:
+            return self.services[service_key]
+        
+        try:
+            if provider == "file":
+                service = FileStorageService()
+            elif provider == "github":
+                service = GitHubService()
+            else:
+                logger.error(f"Không hỗ trợ storage provider: {provider}")
+                # Fallback to default provider
+                return self.get_storage_service(self.config.DEFAULT_STORAGE_PROVIDER)
+            
+            self.services[service_key] = service
+            return service
+        except Exception as e:
+            logger.error(f"Error creating storage service for provider {provider}: {str(e)}")
+            # Fallback to file if different
+            if provider != self.config.DEFAULT_STORAGE_PROVIDER:
+                return self.get_storage_service(self.config.DEFAULT_STORAGE_PROVIDER)
+            raise e
+    
+    def create_storage_service(self, provider: Optional[str] = None) -> Any:
         """
-        Create an LLM service instance for a specific phase
+        Create storage service instance by provider name.
+        This is an alias for get_storage_service for backward compatibility.
+        """
+        return self.get_storage_service(provider)
+    
+    def get_cost_monitoring_service(self) -> Any:
+        """Get cost monitoring service instance"""
+        service_key = "cost_monitoring"
+        
+        if service_key in self.services:
+            return self.services[service_key]
+        
+        try:
+            # Lấy storage service
+            storage_service = self.get_storage_service()
+            
+            # Import function để lấy cost service
+            from app.services.core.monitoring.cost import get_cost_service
+            
+            # Tạo cost service
+            service = get_cost_service(storage_service)
+            
+            self.services[service_key] = service
+            logger.info(f"Đã tạo cost monitoring service")
+            
+            return service
+        except Exception as e:
+            logger.error(f"Error creating cost monitoring service: {str(e)}")
+            raise e
+            
+    def create_llm_service_for_phase(self, phase: str) -> Any:
+        """
+        Create LLM service for a specific research phase
         
         Args:
-            phase: Phase name (prepare, research, edit)
+            phase: Research phase (prepare, research, edit)
             
         Returns:
-            BaseLLMService: LLM service instance configured for the phase
+            LLM service instance
         """
-        settings = get_settings()
+        # Lấy provider từ config dựa trên phase
+        provider_key = f"{phase.upper()}_LLM_PROVIDER"
+        provider = getattr(self.config, provider_key, self.config.DEFAULT_LLM_PROVIDER)
         
-        if phase == "prepare":
-            return ServiceFactory.create_llm_service(
-                provider=settings.PREPARE_LLM_PROVIDER,
-                model_name=settings.PREPARE_MODEL_NAME,
-                max_tokens=settings.PREPARE_MAX_TOKENS,
-                temperature=settings.PREPARE_TEMPERATURE
-            )
-        elif phase == "research":
-            return ServiceFactory.create_llm_service(
-                provider=settings.RESEARCH_LLM_PROVIDER,
-                model_name=settings.RESEARCH_MODEL_NAME,
-                max_tokens=settings.RESEARCH_MAX_TOKENS,
-                temperature=settings.RESEARCH_TEMPERATURE
-            )
-        elif phase == "edit":
-            return ServiceFactory.create_llm_service(
-                provider=settings.EDIT_LLM_PROVIDER,
-                model_name=settings.EDIT_MODEL_NAME,
-                max_tokens=settings.EDIT_MAX_TOKENS,
-                temperature=settings.EDIT_TEMPERATURE
-            )
-        else:
-            raise ConfigError(f"Unknown phase: {phase}")
+        logger.info(f"Tạo LLM service cho phase {phase} với provider {provider}")
+        return self.get_llm_service(provider)
+        
+    async def create_search_service(self, provider: Optional[str] = None) -> Any:
+        """
+        Create search service
+        
+        Args:
+            provider: Search provider name
+            
+        Returns:
+            Search service instance
+        """
+        provider = provider or self.config.DEFAULT_SEARCH_PROVIDER
+        logger.info(f"Tạo search service với provider {provider}")
+        return await self.get_search_service(provider)
 
-    @staticmethod
-    def create_search_service(provider: str = "perplexity") -> BaseSearchService:
-        """Create a search service instance"""
-        if provider == "perplexity":
-            return PerplexityService()
-        elif provider == "google":
-            return GoogleService()
-        else:
-            raise ConfigError(f"Unknown search provider: {provider}")
+# Singleton instance
+service_factory = None
 
-    @staticmethod
-    def create_storage_service(provider: str = "github") -> BaseStorageService:
-        """Create a storage service instance"""
-        if provider == "github":
-            return GitHubService()
-        elif provider == "file":
-            return FileStorageService()
-        else:
-            raise ConfigError(f"Unknown storage provider: {provider}")
+def init_service_factory(config: Settings) -> ServiceFactory:
+    """Initialize the service factory"""
+    global service_factory
+    service_factory = ServiceFactory(config)
+    return service_factory
 
-
-# Singleton instance for easy access
-service_factory = ServiceFactory()
+def get_service_factory() -> ServiceFactory:
+    """Get the service factory instance"""
+    global service_factory
+    if not service_factory:
+        from app.core.config import get_settings
+        service_factory = ServiceFactory(get_settings())
+    return service_factory

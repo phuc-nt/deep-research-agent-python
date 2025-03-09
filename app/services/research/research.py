@@ -4,7 +4,7 @@ from typing import Any, Dict, List
 
 from app.core.config import get_research_prompts
 from app.core.exceptions import ResearchError
-from app.core.factory import service_factory
+from app.core.factory import get_service_factory
 from app.core.logging import logger
 from app.services.research.base import (
     BaseResearchPhase,
@@ -19,8 +19,12 @@ class ResearchService(BaseResearchPhase):
     def __init__(self):
         """Khởi tạo service với các prompts và LLM service"""
         self.prompts = get_research_prompts()
+        service_factory = get_service_factory()
         self.llm_service = service_factory.create_llm_service_for_phase("research")
-        self.search_service = service_factory.create_search_service()
+        self.search_service = None
+        self.update_progress_callback = None
+        # Khởi tạo cost monitoring service
+        self.cost_service = service_factory.get_cost_monitoring_service()
     
     async def execute(
         self, 
@@ -41,6 +45,9 @@ class ResearchService(BaseResearchPhase):
             ResearchError: Nếu có lỗi trong quá trình nghiên cứu
         """
         try:
+            service_factory = get_service_factory()
+            self.search_service = await service_factory.create_search_service()
+            
             logger.info(f"=== BẮT ĐẦU PHASE NGHIÊN CỨU ===")
             logger.info(f"Bắt đầu nghiên cứu cho topic: {request.topic}")
             logger.info(f"Số phần cần nghiên cứu: {len(outline.sections)}")
@@ -53,6 +60,11 @@ class ResearchService(BaseResearchPhase):
                 "target_audience": request.target_audience,
                 "outline": outline.dict()
             }
+            
+            # Bắt đầu ghi nhận thời gian cho phase nghiên cứu
+            task_id = outline.task_id if hasattr(outline, 'task_id') else None
+            if task_id:
+                self.cost_service.start_phase_timing(task_id, "researching")
             
             # Nghiên cứu từng phần
             researched_sections = []
@@ -74,13 +86,28 @@ class ResearchService(BaseResearchPhase):
                 if hasattr(self, 'update_progress_callback') and callable(self.update_progress_callback):
                     await self.update_progress_callback(progress_info)
                 
+                # Bắt đầu ghi nhận thời gian cho section
+                if task_id:
+                    section_id = f"section_{i+1}"
+                    self.cost_service.start_section_timing(task_id, section_id, section.title)
+                
                 # Nghiên cứu phần này
-                researched_section = await self.research_section(section, context)
+                researched_section = await self.research_section(section, context, task_id)
                 researched_sections.append(researched_section)
+                
+                # Kết thúc ghi nhận thời gian cho section
+                if task_id:
+                    self.cost_service.end_section_timing(task_id, section_id, "completed")
                 
                 logger.info(f"Đã hoàn thành nghiên cứu phần {i+1}/{total_sections}: {section.title}")
                 logger.info(f"Độ dài nội dung: {len(researched_section.content) if researched_section.content else 0} ký tự")
                 logger.info(f"Số nguồn tham khảo: {len(researched_section.sources) if researched_section.sources else 0}")
+            
+            # Kết thúc ghi nhận thời gian cho phase nghiên cứu
+            if task_id:
+                self.cost_service.end_phase_timing(task_id, "researching", "completed")
+                # Lưu dữ liệu monitoring
+                await self.cost_service.save_monitoring_data(task_id)
             
             logger.info(f"=== KẾT THÚC PHASE NGHIÊN CỨU - THÀNH CÔNG ===")
             logger.info(f"Đã hoàn thành nghiên cứu {len(researched_sections)}/{total_sections} phần")
@@ -97,7 +124,8 @@ class ResearchService(BaseResearchPhase):
     async def research_section(
         self,
         section: ResearchSection,
-        context: Dict[str, Any]
+        context: Dict[str, Any],
+        task_id: str = None
     ) -> ResearchSection:
         """
         Nghiên cứu một phần cụ thể
@@ -105,6 +133,7 @@ class ResearchService(BaseResearchPhase):
         Args:
             section: Phần cần nghiên cứu
             context: Context cho việc nghiên cứu
+            task_id: ID của task để ghi nhận chi phí
             
         Returns:
             ResearchSection: Phần đã được nghiên cứu
@@ -112,7 +141,7 @@ class ResearchService(BaseResearchPhase):
         try:
             # Tìm kiếm thông tin
             logger.info(f"Bắt đầu tìm kiếm thông tin cho phần: {section.title}")
-            search_results = await self._search_section_info(section, context)
+            search_results = await self._search_section_info(section, context, task_id)
             logger.info(f"Tìm kiếm thành công: {len(search_results)} kết quả")
             
             # Log một số kết quả tìm kiếm đầu tiên
@@ -131,7 +160,12 @@ class ResearchService(BaseResearchPhase):
             )
             
             logger.info(f"Gửi prompt tổng hợp đến LLM: {prompt[:100]}...")
-            content = await self.llm_service.generate(prompt)
+            # Truyền task_id để ghi nhận chi phí
+            content = await self.llm_service.generate(
+                prompt=prompt,
+                task_id=task_id,
+                purpose=f"research_section_{section.title}"
+            )
             logger.info(f"Nhận phản hồi từ LLM: {content[:100]}...")
             
             # Cập nhật nội dung cho phần
@@ -151,7 +185,8 @@ class ResearchService(BaseResearchPhase):
     async def _search_section_info(
         self,
         section: ResearchSection,
-        context: Dict[str, Any]
+        context: Dict[str, Any],
+        task_id: str = None
     ) -> List[Dict[str, str]]:
         """
         Tìm kiếm thông tin cho một phần
@@ -159,6 +194,7 @@ class ResearchService(BaseResearchPhase):
         Args:
             section: Phần cần tìm kiếm
             context: Context cho việc tìm kiếm
+            task_id: ID của task để ghi nhận chi phí
             
         Returns:
             List[Dict[str, str]]: Danh sách kết quả tìm kiếm
@@ -174,7 +210,12 @@ class ResearchService(BaseResearchPhase):
             
             # Thực hiện tìm kiếm
             start_time = time.time()
-            results = await self.search_service.search(search_query)
+            # Truyền task_id để ghi nhận chi phí
+            results = await self.search_service.search(
+                query=search_query,
+                task_id=task_id,
+                purpose=f"search_section_{section.title}"
+            )
             end_time = time.time()
             
             logger.info(f"Tìm kiếm hoàn thành trong {end_time - start_time:.2f} giây")

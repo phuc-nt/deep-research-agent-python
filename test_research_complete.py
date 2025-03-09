@@ -41,12 +41,13 @@ async def main():
     2. Theo dõi tiến độ qua các phase (phân tích, tạo dàn ý, nghiên cứu, chỉnh sửa)
     3. Tự động phát hiện khi research đã xong để chuyển sang edit
     4. Kiểm tra kết quả cuối cùng
+    5. Kiểm tra và hiển thị thông tin chi phí
     """
     logger.info("=== BẮT ĐẦU KIỂM TRA FLOW NGHIÊN CỨU HOÀN CHỈNH ===")
     
     # Dữ liệu yêu cầu nghiên cứu
     research_request = {
-        "query": "Phim ngôn tình có giúp ta thông minh hơn?"
+        "query": "Lợi ích của ăn chay đối với sức khỏe"
     }
     
     logger.info(f"Tạo yêu cầu nghiên cứu: {research_request}")
@@ -63,8 +64,8 @@ async def main():
         print(f"Đã tạo research task với ID: {research_id}")
         
         # Theo dõi tiến độ
-        max_attempts = 200  # Tăng số lần kiểm tra vì flow hoàn chỉnh sẽ mất nhiều thời gian hơn
-        delay_seconds = 10
+        max_attempts = 50  # Giảm số lần kiểm tra để tránh chờ quá lâu
+        delay_seconds = 6  # Giảm thời gian delay xuống 6 giây
         
         logger.info(f"Bắt đầu theo dõi tiến độ nghiên cứu (tối đa {max_attempts} lần kiểm tra)")
         print("\n2. Theo dõi tiến độ nghiên cứu...")
@@ -177,6 +178,59 @@ async def main():
                         logger.warning("Không có thông tin về GitHub URL")
                         print("\nKhông có thông tin về GitHub URL")
                     
+                    # Lấy thông tin chi phí
+                    print("\n4. Kiểm tra chi phí nghiên cứu:")
+                    logger.info("Đang lấy thông tin chi phí nghiên cứu...")
+                    
+                    try:
+                        cost_response = requests.get(f"{BASE_URL}/research/{research_id}/cost")
+                        cost_response.raise_for_status()
+                        cost_data = cost_response.json()
+                        
+                        # Hiển thị thông tin chi phí
+                        logger.info("Thông tin chi phí:")
+                        logger.info(f"- Tổng chi phí: ${cost_data.get('total_cost_usd', 0):.6f} USD")
+                        logger.info(f"- Chi phí LLM: ${cost_data.get('llm_cost_usd', 0):.6f} USD")
+                        logger.info(f"- Chi phí Search: ${cost_data.get('search_cost_usd', 0):.6f} USD")
+                        logger.info(f"- Tổng tokens: {cost_data.get('total_tokens', 0):,}")
+                        logger.info(f"- Tổng requests: {cost_data.get('total_requests', 0):,}")
+                        
+                        print("Thông tin chi phí:")
+                        print(f"- Tổng chi phí: ${cost_data.get('total_cost_usd', 0):.6f} USD")
+                        print(f"- Chi phí LLM: ${cost_data.get('llm_cost_usd', 0):.6f} USD")
+                        print(f"- Chi phí Search: ${cost_data.get('search_cost_usd', 0):.6f} USD")
+                        print(f"- Tổng tokens: {cost_data.get('total_tokens', 0):,}")
+                        print(f"- Tổng requests: {cost_data.get('total_requests', 0):,}")
+                        
+                        # Hiển thị chi tiết từng model
+                        model_breakdown = cost_data.get('model_breakdown', {})
+                        if model_breakdown:
+                            print("\nChi tiết theo model:")
+                            logger.info("Chi tiết theo model:")
+                            for model, model_data in model_breakdown.items():
+                                log_msg = f"- {model}: ${model_data.get('cost_usd', 0):.6f} USD ({model_data.get('requests', 0):,} requests)"
+                                if 'input_tokens' in model_data and 'output_tokens' in model_data:
+                                    log_msg += f", {model_data.get('input_tokens', 0):,} input tokens, {model_data.get('output_tokens', 0):,} output tokens"
+                                
+                                logger.info(log_msg)
+                                print(log_msg)
+                        
+                        # Hiển thị thời gian thực hiện từ dữ liệu cost
+                        execution_time = cost_data.get('execution_time_seconds', {})
+                        if execution_time:
+                            print("\nThời gian thực hiện (từ cost monitoring):")
+                            logger.info("Thời gian thực hiện (từ cost monitoring):")
+                            for phase, seconds in execution_time.items():
+                                minutes = seconds // 60
+                                remaining_seconds = seconds % 60
+                                time_str = f"{minutes} phút {remaining_seconds:.1f} giây" if minutes > 0 else f"{seconds:.1f} giây"
+                                logger.info(f"- {phase}: {time_str}")
+                                print(f"- {phase}: {time_str}")
+                        
+                    except requests.RequestException as e:
+                        logger.error(f"Lỗi khi lấy thông tin chi phí: {str(e)}")
+                        print(f"Lỗi khi lấy thông tin chi phí: {str(e)}")
+                    
                     # Lưu kết quả vào file
                     output_dir = Path("data/test_output")
                     output_dir.mkdir(exist_ok=True, parents=True)
@@ -184,6 +238,16 @@ async def main():
                     output_file = output_dir / f"research_complete_{research_id}.json"
                     with open(output_file, 'w', encoding='utf-8') as f:
                         json.dump(result, f, ensure_ascii=False, indent=2)
+                    
+                    # Lưu thông tin chi phí vào file
+                    cost_output_file = output_dir / f"research_cost_{research_id}.json"
+                    try:
+                        with open(cost_output_file, 'w', encoding='utf-8') as f:
+                            json.dump(cost_data, f, ensure_ascii=False, indent=2)
+                        logger.info(f"Đã lưu thông tin chi phí vào file: {cost_output_file}")
+                        print(f"\nĐã lưu thông tin chi phí vào file: {cost_output_file}")
+                    except Exception as e:
+                        logger.error(f"Lỗi khi lưu thông tin chi phí: {str(e)}")
                     
                     logger.info(f"Đã lưu kết quả vào file: {output_file}")
                     print(f"\nĐã lưu kết quả vào file: {output_file}")

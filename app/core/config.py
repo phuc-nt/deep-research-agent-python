@@ -1,4 +1,4 @@
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from dataclasses import dataclass
 
@@ -23,8 +23,12 @@ class Settings(BaseSettings):
     GITHUB_USERNAME: str = "your_github_username"
     GITHUB_REPO: str = "your_github_repo"
     
-    # LLM settings
+    # Provider settings
     DEFAULT_LLM_PROVIDER: str = "openai"
+    DEFAULT_SEARCH_PROVIDER: str = "perplexity"
+    DEFAULT_STORAGE_PROVIDER: str = "file"
+    
+    # LLM settings
     MODEL_NAME: str = "gpt-4"
     MAX_TOKENS: int = 4000
     TEMPERATURE: float = 0.7
@@ -45,7 +49,30 @@ class Settings(BaseSettings):
     EDIT_MAX_TOKENS: int = 4000
     EDIT_TEMPERATURE: float = 0.7
     
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    # Cost monitoring settings
+    ENABLE_COST_MONITORING: bool = True
+    COST_STORAGE_PROVIDER: str = "file"
+    
+    # Cost Tracking
+    ENABLE_COST_TRACKING: bool = True
+    OPENAI_COST_PROMPT_TOKEN: float = 0.00000025
+    OPENAI_COST_COMPLETION_TOKEN: float = 0.00000075
+    CLAUDE_COST_PROMPT_TOKEN: float = 0.000008
+    CLAUDE_COST_COMPLETION_TOKEN: float = 0.000024
+    PERPLEXITY_COST_PROMPT_TOKEN: float = 0.000002
+    PERPLEXITY_COST_COMPLETION_TOKEN: float = 0.000002
+    
+    # Storage settings
+    storage_provider: Optional[str] = None
+    data_dir: Optional[str] = None
+    logs_dir: Optional[str] = None
+    
+    model_config = SettingsConfigDict(
+        env_file=".env", 
+        env_file_encoding="utf-8",
+        extra="allow",  # Allow extra fields
+        protected_namespaces=()  # Disable protected namespaces check
+    )
 
 
 @dataclass

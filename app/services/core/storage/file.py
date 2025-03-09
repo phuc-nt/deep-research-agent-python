@@ -159,4 +159,39 @@ class FileStorageService(BaseStorageService):
             
         except Exception as e:
             logger.error(f"Lỗi khi liệt kê file trong thư mục {directory}: {str(e)}")
+            raise
+    
+    def save_data(self, data: Any, file_path: str) -> str:
+        """
+        Lưu dữ liệu vào file (phương thức đồng bộ)
+        
+        Args:
+            data: Dữ liệu cần lưu (có thể là string hoặc object)
+            file_path: Đường dẫn file tương đối so với base_dir
+            
+        Returns:
+            str: Đường dẫn đầy đủ đến file đã lưu
+        """
+        try:
+            # Tạo đường dẫn đầy đủ
+            full_path = os.path.join(self.base_dir, file_path)
+            
+            # Tạo thư mục cha nếu chưa tồn tại
+            os.makedirs(os.path.dirname(full_path), exist_ok=True)
+            
+            # Xác định loại dữ liệu và lưu phù hợp
+            if isinstance(data, (dict, list)):
+                # Lưu dữ liệu dạng JSON
+                with open(full_path, 'w', encoding='utf-8') as f:
+                    json.dump(data, f, ensure_ascii=False, indent=2)
+            else:
+                # Lưu dữ liệu dạng string
+                with open(full_path, 'w', encoding='utf-8') as f:
+                    f.write(str(data))
+            
+            logger.info(f"Đã lưu dữ liệu vào file: {full_path}")
+            return str(full_path)
+            
+        except Exception as e:
+            logger.error(f"Lỗi khi lưu dữ liệu vào file {file_path}: {str(e)}")
             raise 

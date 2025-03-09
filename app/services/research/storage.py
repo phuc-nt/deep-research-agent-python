@@ -1,19 +1,24 @@
 import json
 import os
+import logging
+from pathlib import Path
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 from uuid import UUID
 
-from app.core.factory import service_factory
-from app.core.logging import logger
+from app.core.factory import get_service_factory
+from app.core.logging import get_logger
 from app.models.research import (
     ResearchRequest,
     ResearchResponse,
     ResearchOutline,
     ResearchSection,
     ResearchResult,
-    ResearchStatus
+    ResearchStatus,
+    ResearchCostInfo
 )
+
+logger = get_logger(__name__)
 
 class ResearchStorageService:
     """Service quản lý lưu trữ và truy xuất dữ liệu nghiên cứu"""
@@ -25,7 +30,8 @@ class ResearchStorageService:
         Args:
             storage_provider: Provider lưu trữ ("file" hoặc "github")
         """
-        self.storage_service = service_factory.create_storage_service(storage_provider)
+        service_factory = get_service_factory()
+        self.storage_service = service_factory.get_storage_service(storage_provider)
         self.tasks_dir = "research_tasks"
         self.base_dir = self.storage_service.base_dir
         logger.info(f"Khởi tạo ResearchStorageService với provider: {storage_provider}")
@@ -45,46 +51,97 @@ class ResearchStorageService:
     
     def _get_full_path(self, relative_path: str) -> str:
         """
-        Tạo đường dẫn tuyệt đối đến file
+        Tạo đường dẫn đầy đủ đến file
         
         Args:
             relative_path: Đường dẫn tương đối
             
         Returns:
-            str: Đường dẫn tuyệt đối
+            str: Đường dẫn đầy đủ
         """
-        return os.path.join(self.base_dir, relative_path)
+        # Với `file` storage, đã có đường dẫn đầy đủ
+        if hasattr(self.storage_service, 'base_dir'):
+            # Đảm bảo path là đối tượng Path
+            path = Path(relative_path)
+            if path.is_absolute():
+                return str(path)
+            return str(Path(self.base_dir) / path)
+        return relative_path
     
-    async def save_task(self, task: ResearchResponse) -> str:
-        """
-        Lưu thông tin cơ bản của task vào file
-        
-        Args:
-            task: Task cần lưu
-            
-        Returns:
-            str: Đường dẫn đến file đã lưu
-        """
+    def _json_serializer(self, obj):
+        """Hàm hỗ trợ serialize các object đặc biệt sang JSON"""
+        from datetime import datetime
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        if hasattr(obj, "dict") and callable(getattr(obj, "dict")):
+            return obj.dict()
+        raise TypeError(f"Type {type(obj)} not serializable")
+    
+    async def save_task(self, task: ResearchResponse) -> None:
+        """Lưu thông tin task vào file"""
         try:
-            # Chuyển đổi task thành dict
-            task_dict = task.dict(exclude={"outline", "sections", "result"})
+            task_path = self._get_task_path(task.id, "task.json")
+            full_path = self._get_full_path(task_path)
             
-            # Chuyển đổi datetime thành string
-            task_dict["created_at"] = task_dict["created_at"].isoformat() if task_dict.get("created_at") else None
-            task_dict["updated_at"] = task_dict["updated_at"].isoformat() if task_dict.get("updated_at") else None
+            # Đảm bảo thư mục tồn tại
+            os.makedirs(os.path.dirname(full_path), exist_ok=True)
             
-            # Tạo đường dẫn file
-            file_path = self._get_task_path(task.id, "task.json")
+            # Chuyển sang dict để serialize
+            task_dict = task.dict()
             
             # Lưu vào file
-            path = await self.storage_service.save(task_dict, file_path)
-            logger.info(f"Đã lưu thông tin cơ bản của task {task.id} vào file: {path}")
+            with open(full_path, "w", encoding="utf-8") as f:
+                json.dump(task_dict, f, ensure_ascii=False, indent=2, default=self._json_serializer)
             
-            return path
-            
+            logger.info(f"Đã lưu dữ liệu vào file: {full_path}")
+            logger.info(f"Đã lưu thông tin cơ bản của task {task.id} vào file: {full_path}")
         except Exception as e:
-            logger.error(f"Lỗi khi lưu task {task.id}: {str(e)}")
+            logger.error(f"Lỗi khi lưu thông tin task {task.id}: {str(e)}")
             raise
+
+    def update_cost_info(self, task_id: str, cost_info: ResearchCostInfo) -> None:
+        """Cập nhật thông tin chi phí cho một task"""
+        try:
+            # Lấy thông tin cơ bản hiện có
+            task_info = self.get_basic_task_info(task_id)
+            if not task_info:
+                logger.warning(f"Không tìm thấy task {task_id} để cập nhật cost_info")
+                return
+            
+            # Cập nhật cost_info
+            if hasattr(cost_info, 'dict'):
+                # Nếu cost_info là đối tượng Pydantic
+                task_info["cost_info"] = cost_info.dict()
+            else:
+                # Nếu cost_info đã là dict
+                task_info["cost_info"] = cost_info
+            
+            # Lưu lại vào file
+            task_path = self._get_task_path(task_id, "task.json")
+            full_path = self._get_full_path(task_path)
+            
+            with open(full_path, "w", encoding="utf-8") as f:
+                json.dump(task_info, f, ensure_ascii=False, indent=2, default=self._json_serializer)
+            
+            logger.info(f"Đã cập nhật cost_info cho task {task_id}")
+        except Exception as e:
+            logger.error(f"Lỗi khi cập nhật cost_info cho task {task_id}: {str(e)}")
+
+    async def update_task_with_cost_info(self, task: ResearchResponse, cost_info: ResearchCostInfo) -> ResearchResponse:
+        """Cập nhật task với thông tin chi phí và lưu vào file"""
+        try:
+            # Cập nhật cost_info trong task
+            task.cost_info = cost_info
+            task.updated_at = datetime.now()
+            
+            # Lưu task
+            await self.save_task(task)
+            
+            logger.info(f"Đã cập nhật task {task.id} với cost_info")
+            return task
+        except Exception as e:
+            logger.error(f"Lỗi khi cập nhật task {task.id} với cost_info: {str(e)}")
+            return task
     
     async def load_task(self, task_id: str) -> Optional[ResearchResponse]:
         """
@@ -388,4 +445,34 @@ class ResearchStorageService:
             
         except Exception as e:
             logger.error(f"Lỗi khi đọc kết quả của task {task_id}: {str(e)}")
+            return None
+    
+    def get_basic_task_info(self, task_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Lấy thông tin cơ bản của task từ file
+        
+        Args:
+            task_id: ID của task cần đọc
+            
+        Returns:
+            Optional[Dict[str, Any]]: Thông tin cơ bản của task hoặc None nếu không tìm thấy
+        """
+        try:
+            file_path = self._get_task_path(task_id, "task.json")
+            full_path = self._get_full_path(file_path)
+            
+            # Kiểm tra file tồn tại
+            if not os.path.exists(full_path):
+                logger.warning(f"Không tìm thấy file task {task_id}")
+                return None
+            
+            # Đọc file
+            with open(full_path, "r", encoding="utf-8") as f:
+                task_data = json.load(f)
+            
+            logger.info(f"Đã đọc thông tin cơ bản của task {task_id} từ file")
+            return task_data
+            
+        except Exception as e:
+            logger.error(f"Lỗi khi đọc thông tin cơ bản của task {task_id}: {str(e)}")
             return None 
