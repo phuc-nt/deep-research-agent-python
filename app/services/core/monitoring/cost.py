@@ -527,6 +527,11 @@ class CostMonitoringService:
                 logger.warning(f"Không thể đọc task.json cho task {task_id}: {str(e)}")
                 return
                 
+            # Kiểm tra xem task_data có tồn tại không
+            if task_data is None:
+                logger.warning(f"Dữ liệu task.json cho task {task_id} là None, không thể cập nhật")
+                return
+                
             # Cập nhật thông tin chi phí
             if "cost_info" not in task_data:
                 task_data["cost_info"] = {}

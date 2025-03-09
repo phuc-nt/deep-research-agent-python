@@ -54,6 +54,17 @@ class EditService(BaseEditPhase):
             
             # Lấy task_id từ outline nếu có
             task_id = outline.task_id if hasattr(outline, 'task_id') else None
+            logger.info(f"EditService.execute: task_id = {task_id}")
+            
+            # Kiểm tra sections
+            if not sections or len(sections) == 0:
+                logger.warning("Không có sections nào để chỉnh sửa")
+                raise EditError("Không có sections nào để chỉnh sửa")
+            
+            # Kiểm tra nội dung của sections
+            for i, section in enumerate(sections):
+                if not section.content:
+                    logger.warning(f"Section {i+1} ({section.title}) không có nội dung")
             
             # Bắt đầu ghi nhận thời gian cho phase chỉnh sửa
             if task_id:
@@ -68,13 +79,28 @@ class EditService(BaseEditPhase):
             
             # Chỉnh sửa và kết hợp nội dung
             logger.info("Bắt đầu chỉnh sửa và kết hợp nội dung...")
-            content = await self.edit_content(sections, context, task_id)
-            logger.info(f"Chỉnh sửa nội dung thành công, độ dài: {len(content)} ký tự")
+            try:
+                content = await self.edit_content(sections, context, task_id)
+                logger.info(f"Chỉnh sửa nội dung thành công, độ dài: {len(content)} ký tự")
+            except Exception as e:
+                logger.error(f"Lỗi khi chỉnh sửa nội dung trong execute: {str(e)}")
+                # Tạo nội dung mặc định từ các sections
+                content = "# " + request.topic + "\n\n"
+                for section in sections:
+                    content += "## " + section.title + "\n\n"
+                    if section.content:
+                        content += section.content + "\n\n"
+                logger.info(f"Sử dụng nội dung mặc định do lỗi, độ dài: {len(content)} ký tự")
             
             # Tạo tiêu đề
             logger.info("Bắt đầu tạo tiêu đề...")
-            title = await self.create_title(content, context, task_id)
-            logger.info(f"Tạo tiêu đề thành công: {title}")
+            try:
+                title = await self.create_title(content, context, task_id)
+                logger.info(f"Tạo tiêu đề thành công: {title}")
+            except Exception as e:
+                logger.error(f"Lỗi khi tạo tiêu đề trong execute: {str(e)}")
+                title = request.topic
+                logger.info(f"Sử dụng tiêu đề mặc định do lỗi: {title}")
             
             # Thu thập các nguồn
             logger.info("Bắt đầu thu thập nguồn tham khảo...")
@@ -106,7 +132,10 @@ class EditService(BaseEditPhase):
                 self.cost_service.start_phase_timing(task_id, "completed")
                 self.cost_service.end_phase_timing(task_id, "completed", "completed")
                 # Lưu dữ liệu monitoring
-                await self.cost_service.save_monitoring_data(task_id)
+                try:
+                    await self.cost_service.save_monitoring_data(task_id)
+                except Exception as e:
+                    logger.error(f"Lỗi khi lưu dữ liệu monitoring: {str(e)}")
             
             logger.info(f"=== KẾT THÚC PHASE CHỈNH SỬA - THÀNH CÔNG ===")
             return result
@@ -125,10 +154,10 @@ class EditService(BaseEditPhase):
         task_id: str = None
     ) -> str:
         """
-        Chỉnh sửa và kết hợp nội dung từ các phần
+        Chỉnh sửa và kết hợp nội dung từ các phần nghiên cứu
         
         Args:
-            sections: Danh sách các phần đã nghiên cứu
+            sections: Danh sách các phần nghiên cứu
             context: Context cho việc chỉnh sửa
             task_id: ID của task để ghi nhận chi phí
             
@@ -137,56 +166,81 @@ class EditService(BaseEditPhase):
         """
         try:
             logger.info("Bắt đầu chỉnh sửa và kết hợp nội dung...")
+            logger.info(f"EditService.edit_content: task_id = {task_id}")
             
-            # Chuẩn bị dữ liệu đầu vào
-            sections_data = []
-            for section in sections:
-                section_data = {
-                    "title": section.title,
-                    "content": section.content
-                }
-                sections_data.append(section_data)
+            # Kiểm tra sections
+            if not sections or len(sections) == 0:
+                logger.warning("Không có sections nào để chỉnh sửa")
+                return f"# {context['topic']}\n\nKhông có nội dung để chỉnh sửa."
+            
+            # Tạo nội dung từ các sections để gửi đến LLM
+            combined_content = ""
+            for i, section in enumerate(sections):
+                # Kiểm tra và log thông tin về section
+                logger.info(f"Section {i+1}: {section.title}")
+                logger.info(f"Section {i+1} có nội dung: {len(section.content) if section.content else 0} ký tự")
+                
+                # Thêm nội dung section vào combined_content
+                combined_content += f"## {section.title}\n\n"
+                if section.content:
+                    combined_content += f"{section.content}\n\n"
+                else:
+                    logger.warning(f"Section {i+1} ({section.title}) không có nội dung")
+                    combined_content += "Không có nội dung cho phần này.\n\n"
             
             # Tạo prompt
             prompt = self.prompts.EDIT_CONTENT.format(
                 topic=context["topic"],
                 scope=context["scope"],
                 target_audience=context["target_audience"],
-                sections=json.dumps(sections_data, ensure_ascii=False)
+                content=combined_content
             )
             
-            # Gọi LLM để chỉnh sửa
-            logger.info(f"Gửi prompt chỉnh sửa đến LLM: {prompt[:100]}...")
-            response = await self.llm_service.generate(
-                prompt=prompt,
-                task_id=task_id,
-                purpose="edit_content"
-            )
-            logger.info(f"Nhận phản hồi từ LLM: {response[:100]}...")
-            
-            # Xử lý kết quả
-            content = response.strip()
-            
-            # Kiểm tra xem kết quả có phải là JSON không
+            # Gọi LLM để chỉnh sửa nội dung
+            logger.info(f"Gửi prompt chỉnh sửa nội dung đến LLM (độ dài: {len(prompt)} ký tự)")
             try:
-                content_data = json.loads(content)
-                if isinstance(content_data, dict) and "content" in content_data:
-                    content = content_data["content"]
-                    logger.info("Đã trích xuất nội dung từ JSON")
-            except json.JSONDecodeError:
-                # Nếu không phải JSON, sử dụng toàn bộ phản hồi
-                logger.info("Phản hồi không phải là JSON, sử dụng toàn bộ phản hồi")
-            
-            return content
-            
+                response = await self.llm_service.generate(
+                    prompt=prompt,
+                    task_id=task_id,
+                    purpose="edit_content"
+                )
+                logger.info(f"Nhận phản hồi từ LLM (độ dài: {len(response)} ký tự)")
+                
+                # Xử lý kết quả
+                content = response.strip()
+                
+                # Kiểm tra xem kết quả có phải là JSON không
+                try:
+                    content_data = json.loads(content)
+                    if isinstance(content_data, dict):
+                        if "content" in content_data:
+                            content = content_data["content"]
+                            logger.info("Đã trích xuất nội dung từ JSON với trường 'content'")
+                        elif "text" in content_data:
+                            content = content_data["text"]
+                            logger.info("Đã trích xuất nội dung từ JSON với trường 'text'")
+                        elif "result" in content_data:
+                            content = content_data["result"]
+                            logger.info("Đã trích xuất nội dung từ JSON với trường 'result'")
+                except json.JSONDecodeError:
+                    # Nếu không phải JSON, sử dụng toàn bộ phản hồi
+                    logger.info("Phản hồi không phải là JSON, sử dụng toàn bộ phản hồi")
+                
+                return content
+            except Exception as llm_error:
+                logger.error(f"Lỗi khi gọi LLM để chỉnh sửa nội dung: {str(llm_error)}")
+                raise llm_error
+                
         except Exception as e:
             logger.error(f"Lỗi khi chỉnh sửa nội dung: {str(e)}")
-            # Trả về nội dung mặc định nếu có lỗi
-            default_content = "# " + context["topic"] + "\n\n"
+            # Tạo nội dung mặc định từ các sections
+            default_content = f"# {context['topic']}\n\n"
             for section in sections:
-                default_content += "## " + section.title + "\n\n"
+                default_content += f"## {section.title}\n\n"
                 if section.content:
-                    default_content += section.content + "\n\n"
+                    default_content += f"{section.content}\n\n"
+            
+            logger.info(f"Sử dụng nội dung mặc định do lỗi, độ dài: {len(default_content)} ký tự")
             return default_content
     
     async def create_title(
@@ -208,6 +262,7 @@ class EditService(BaseEditPhase):
         """
         try:
             logger.info("Bắt đầu tạo tiêu đề...")
+            logger.info(f"EditService.create_title: task_id = {task_id}")
             
             # Lấy đoạn đầu của nội dung để tạo tiêu đề
             content_preview = content[:2000]  # Lấy 2000 ký tự đầu tiên
@@ -222,34 +277,49 @@ class EditService(BaseEditPhase):
             
             # Gọi LLM để tạo tiêu đề
             logger.info(f"Gửi prompt tạo tiêu đề đến LLM: {prompt[:100]}...")
-            response = await self.llm_service.generate(
-                prompt=prompt,
-                task_id=task_id,
-                purpose="create_title"
-            )
-            logger.info(f"Nhận phản hồi từ LLM: {response}")
-            
-            # Xử lý kết quả
-            title = response.strip()
-            
-            # Kiểm tra xem kết quả có phải là JSON không
             try:
-                title_data = json.loads(title)
-                if isinstance(title_data, dict) and "title" in title_data:
-                    title = title_data["title"]
-                    logger.info("Đã trích xuất tiêu đề từ JSON")
-            except json.JSONDecodeError:
-                # Nếu không phải JSON, sử dụng toàn bộ phản hồi
-                logger.info("Phản hồi không phải là JSON, sử dụng toàn bộ phản hồi")
-            
-            # Loại bỏ dấu ngoặc kép nếu có
-            title = title.strip('"')
-            
-            return title
+                response = await self.llm_service.generate(
+                    prompt=prompt,
+                    task_id=task_id,
+                    purpose="create_title"
+                )
+                logger.info(f"Nhận phản hồi từ LLM: {response}")
+                
+                # Xử lý kết quả
+                title = response.strip()
+                
+                # Log giá trị của title để debug
+                logger.info(f"Title trước khi xử lý JSON: '{title}'")
+                
+                # Kiểm tra xem kết quả có phải là JSON không
+                try:
+                    title_data = json.loads(title)
+                    if isinstance(title_data, dict):
+                        if "title" in title_data:
+                            title = title_data["title"]
+                            logger.info("Đã trích xuất tiêu đề từ JSON với trường 'title'")
+                        elif "text" in title_data:
+                            title = title_data["text"]
+                            logger.info("Đã trích xuất tiêu đề từ JSON với trường 'text'")
+                        elif "result" in title_data:
+                            title = title_data["result"]
+                            logger.info("Đã trích xuất tiêu đề từ JSON với trường 'result'")
+                except json.JSONDecodeError:
+                    # Nếu không phải JSON, sử dụng toàn bộ phản hồi
+                    logger.info("Phản hồi không phải là JSON, sử dụng toàn bộ phản hồi")
+                
+                # Loại bỏ dấu ngoặc kép nếu có
+                title = title.strip('"')
+                
+                return title
+            except Exception as llm_error:
+                logger.error(f"Lỗi khi gọi LLM để tạo tiêu đề: {str(llm_error)}")
+                raise llm_error
             
         except Exception as e:
             logger.error(f"Lỗi khi tạo tiêu đề: {str(e)}")
             # Trả về tiêu đề mặc định nếu có lỗi
+            logger.info(f"Sử dụng tiêu đề mặc định do lỗi: {context['topic']}")
             return context["topic"]
     
     def _collect_sources(self, sections: List[ResearchSection]) -> List[str]:

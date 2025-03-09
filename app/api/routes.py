@@ -1158,13 +1158,16 @@ async def process_complete_research(task_id: str, request: ResearchRequest):
             cost_summary = cost_service.get_summary(task_id)
             
             # Cập nhật thông tin chi phí vào task
-            await research_storage_service.update_cost_info(task_id, cost_summary)
+            try:
+                research_storage_service.update_cost_info(task_id, cost_summary)
+                logger.info(f"[Task {task_id}] Đã cập nhật thông tin chi phí: ${cost_summary.total_cost_usd:.6f} USD")
+            except Exception as e:
+                logger.error(f"[Task {task_id}] Lỗi khi cập nhật cost_info trong task.json: {str(e)}")
             
-            logger.info(f"[Task {task_id}] Đã cập nhật thông tin chi phí: ${cost_summary.total_cost_usd:.6f} USD")
-        except Exception as e:
-            logger.error(f"[Task {task_id}] Lỗi khi cập nhật thông tin chi phí: {str(e)}")
+            logger.info(f"[Task {task_id}] === HOÀN THÀNH RESEARCH TASK HOÀN CHỈNH ===")
         
-        logger.info(f"[Task {task_id}] === HOÀN THÀNH RESEARCH TASK HOÀN CHỈNH ===")
+        except Exception as e:
+            logger.error(f"[Task {task_id}] Lỗi khi lấy hoặc xử lý thông tin chi phí: {str(e)}")
         
     except Exception as e:
         logger.error(f"[Task {task_id}] Lỗi khi xử lý research task hoàn chỉnh: {str(e)}")
