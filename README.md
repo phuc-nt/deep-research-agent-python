@@ -6,12 +6,13 @@ Dự án này bao gồm [tài liệu API chi tiết](docs/api.md) và [sequence 
 
 ## Tính năng
 
-- Phân tích yêu cầu nghiên cứu để xác định chủ đề, phạm vi và đối tượng đọc
-- Tạo dàn ý chi tiết cho bài nghiên cứu
-- Thực hiện nghiên cứu chuyên sâu cho từng phần của bài viết
-- Tổng hợp và chỉnh sửa nội dung thành bài viết hoàn chỉnh
+- Phân tích yêu cầu nghiên cứu và tự động tạo các nhiệm vụ chi tiết
+- Tạo đề cương nghiên cứu chi tiết dựa trên các yêu cầu
+- Tiến hành nghiên cứu chuyên sâu và tổng hợp kết quả
+- Tạo nội dung đầy đủ và định dạng cho tài liệu cuối cùng
 - Hỗ trợ lưu trữ và quản lý nội dung trên GitHub
 - Theo dõi tiến độ chi tiết của quá trình nghiên cứu
+- Theo dõi chi phí sử dụng LLM và search API theo từng task
 - Tối ưu hóa lưu trữ dữ liệu và giảm thiểu dư thừa
 - Phân tích thông minh ngay cả khi chỉ cung cấp câu hỏi nghiên cứu
 - Cơ chế validation và retry để đảm bảo chất lượng
@@ -29,34 +30,26 @@ graph TD
         API --> Research[Research Service]
         API --> Edit[Edit Service]
         API --> Storage[Storage Service]
+        API --> Cost[Cost Monitoring Service]
         
         Prepare --> LLM1[LLM Service]
         Prepare --> Search1[Search Service]
-        
         Research --> LLM2[LLM Service]
         Research --> Search2[Search Service]
-        
         Edit --> LLM3[LLM Service]
         
         Storage --> FileSystem[File System]
         Storage --> GitHub[GitHub Storage]
+        
+        LLM1 --> Cost
+        LLM2 --> Cost
+        LLM3 --> Cost
+        Search1 --> Cost
+        Search2 --> Cost
     end
     
-    subgraph "Research Flow"
-        P1[B1: Phân tích yêu cầu] --> P2[B2: Tạo dàn ý]
-        P2 --> P3[B3: Nghiên cứu từng phần]
-        P3 --> P4[B4: Chỉnh sửa nội dung]
-        P4 --> P5[B5: Lưu trữ kết quả]
-    end
-    
-    Prepare -.-> P1
-    Prepare -.-> P2
-    Research -.-> P3
-    Edit -.-> P4
-    Storage -.-> P5
-    
-    API --> Results[Research Results]
-    Results --> Client
+    style API fill:#f9f,stroke:#333,stroke-width:2px
+    style Cost fill:#bbf,stroke:#333,stroke-width:2px
 ```
 
 Hệ thống được thiết kế theo kiến trúc module hóa cao, bao gồm các thành phần chính:
@@ -97,13 +90,18 @@ app/
 │   └── logging.py           # Logging setup
 ├── models/                   # Data models
 │   ├── __init__.py
-│   └── research.py          # Research models
+│   ├── research.py          # Research models
+│   └── cost.py              # Cost models
 ├── services/
 │   ├── core/                # Các dịch vụ cơ bản
 │   │   ├── llm/            # Dịch vụ xử lý ngôn ngữ
 │   │   │   ├── base.py
 │   │   │   ├── openai.py   # OpenAI service
 │   │   │   └── claude.py   # Claude service
+│   │   ├── monitoring/     # Dịch vụ theo dõi
+│   │   │   ├── __init__.py
+│   │   │   ├── cost.py     # Theo dõi chi phí
+│   │   │   └── custom_pricing.py # Cấu hình giá
 │   │   ├── search/         # Dịch vụ tìm kiếm
 │   │   │   ├── base.py
 │   │   │   ├── google.py   # Google search
@@ -302,6 +300,13 @@ curl -X GET "http://localhost:8000/research/{task_id}"
 - Tự động phát hiện khi nghiên cứu hoàn thành và chuyển sang giai đoạn chỉnh sửa
 - Theo dõi tiến độ chi tiết xuyên suốt qua các giai đoạn
 - Tự động xử lý quá trình lưu trữ và đăng kết quả lên GitHub
+
+### Theo dõi chi phí
+- Hệ thống ghi nhận và theo dõi chi phí theo từng task nghiên cứu
+- Tính toán chi phí chi tiết cho các yêu cầu LLM và search
+- Lưu trữ thông tin chi phí theo từng giai đoạn của quá trình nghiên cứu
+- Cung cấp báo cáo chi phí tổng hợp cho mỗi task nghiên cứu
+- Tùy chỉnh mức giá theo từng nhà cung cấp dịch vụ (OpenAI, Claude, Perplexity)
 
 ### Theo dõi tiến độ chi tiết
 - Thêm trường `progress_info` trong `ResearchResponse` để cung cấp thông tin chi tiết về tiến độ
