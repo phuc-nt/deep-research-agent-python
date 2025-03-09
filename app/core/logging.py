@@ -22,5 +22,11 @@ def setup_logging():
     logger = logging.getLogger("deep-research")
     return logger
 
+def get_logger(name=None):
+    """Get a logger instance by name"""
+    if name is None:
+        return logger
+    return logging.getLogger(name)
+
 # Global logger instance
 logger = setup_logging() 

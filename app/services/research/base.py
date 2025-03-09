@@ -20,6 +20,7 @@ class ResearchSection(BaseModel):
 class ResearchOutline(BaseModel):
     """Model cho dàn ý nghiên cứu"""
     sections: List[ResearchSection]
+    task_id: Optional[str] = None
 
 class ResearchResult(BaseModel):
     """Model cho kết quả nghiên cứu hoàn chỉnh"""

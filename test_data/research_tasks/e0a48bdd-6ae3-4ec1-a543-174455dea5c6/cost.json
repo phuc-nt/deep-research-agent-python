@@ -1,0 +1,80 @@
+{
+  "task_id": "e0a48bdd-6ae3-4ec1-a543-174455dea5c6",
+  "llm_requests": [
+    {
+      "timestamp": "2025-03-09T14:23:18.756945",
+      "model": "gpt-4o-mini",
+      "input_tokens": 27,
+      "output_tokens": 117,
+      "cost_usd": 7.425e-05,
+      "prompt": "Hãy giải thích khái niệm trí tuệ nhân tạo trong 2-3 câu.",
+      "duration_ms": 2834,
+      "endpoint": "OpenAIService",
+      "request_id": "1741504998.756973",
+      "purpose": "test_openai"
+    },
+    {
+      "timestamp": "2025-03-09T14:23:21.594082",
+      "model": "claude-3-5-sonnet-latest",
+      "input_tokens": 39,
+      "output_tokens": 153,
+      "cost_usd": 0.0024119999999999996,
+      "prompt": "Hãy giải thích khái niệm trí tuệ nhân tạo trong 2-3 câu.",
+      "duration_ms": 2835,
+      "endpoint": "Claude",
+      "request_id": "1741505001.594098",
+      "purpose": "test_claude"
+    }
+  ],
+  "search_requests": [
+    {
+      "timestamp": "2025-03-09T14:23:27.860376",
+      "provider": "perplexity",
+      "query": "Các ứng dụng của AI trong giáo dục năm 2024",
+      "cost_usd": 0.00018580000000000002,
+      "duration_ms": 6264,
+      "num_results": 5,
+      "request_id": "1741505007.860388",
+      "purpose": "test_search",
+      "input_tokens": 28,
+      "output_tokens": 901
+    }
+  ],
+  "phase_timings": [],
+  "section_timings": [],
+  "created_at": "2025-03-09T14:23:15.903831",
+  "updated_at": "2025-03-09T14:23:15.903833",
+  "summary": {
+    "total_cost_usd": 0.0026720499999999996,
+    "llm_cost_usd": 0.0024862499999999997,
+    "search_cost_usd": 0.00018580000000000002,
+    "total_tokens": 1265,
+    "total_input_tokens": 94,
+    "total_output_tokens": 1171,
+    "total_llm_requests": 2,
+    "total_search_requests": 1,
+    "model_breakdown": {
+      "gpt-4o-mini": {
+        "cost_usd": 7.425e-05,
+        "requests": 1,
+        "input_tokens": 27,
+        "output_tokens": 117
+      },
+      "claude-3-5-sonnet-latest": {
+        "cost_usd": 0.0024119999999999996,
+        "requests": 1,
+        "input_tokens": 39,
+        "output_tokens": 153
+      }
+    },
+    "provider_breakdown": {
+      "perplexity": {
+        "cost_usd": 0.00018580000000000002,
+        "requests": 1,
+        "input_tokens": 28,
+        "output_tokens": 901
+      }
+    },
+    "last_updated": "2025-03-09T14:23:27.861068"
+  }
+}

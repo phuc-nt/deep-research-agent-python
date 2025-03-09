@@ -1,7 +1,15 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.core.config import get_settings
+from app.core.factory import init_service_factory
 
 from app.api.routes import router
+
+# Khởi tạo settings
+settings = get_settings()
+
+# Khởi tạo service factory
+init_service_factory(settings)
 
 app = FastAPI(
     title="Deep Research Agent API",
