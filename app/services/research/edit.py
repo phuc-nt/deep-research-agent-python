@@ -52,8 +52,17 @@ class EditService(BaseEditPhase):
             logger.info(f"Bắt đầu chỉnh sửa nghiên cứu cho topic: {request.topic}")
             logger.info(f"Số phần cần chỉnh sửa: {len(sections)}")
             
-            # Lấy task_id từ outline nếu có
-            task_id = outline.task_id if hasattr(outline, 'task_id') else None
+            # Lấy task_id từ request hoặc outline
+            task_id = None
+            if hasattr(request, 'task_id') and request.task_id:
+                task_id = request.task_id
+                logger.info(f"Sử dụng task_id từ request: {task_id}")
+            elif hasattr(outline, 'task_id') and outline.task_id:
+                task_id = outline.task_id
+                logger.info(f"Sử dụng task_id từ outline: {task_id}")
+            else:
+                logger.warning("Không tìm thấy task_id trong request hoặc outline")
+                
             logger.info(f"EditService.execute: task_id = {task_id}")
             
             # Kiểm tra sections
@@ -68,7 +77,10 @@ class EditService(BaseEditPhase):
             
             # Bắt đầu ghi nhận thời gian cho phase chỉnh sửa
             if task_id:
-                self.cost_service.start_phase_timing(task_id, "editing")
+                try:
+                    self.cost_service.start_phase_timing(task_id, "editing")
+                except Exception as e:
+                    logger.error(f"Lỗi khi bắt đầu timing cho phase editing: {str(e)}")
             
             # Tạo context từ request
             context = {
@@ -127,15 +139,18 @@ class EditService(BaseEditPhase):
             
             # Kết thúc ghi nhận thời gian cho phase chỉnh sửa
             if task_id:
-                self.cost_service.end_phase_timing(task_id, "editing", "completed")
-                # Bắt đầu ghi nhận thời gian cho phase hoàn thành
-                self.cost_service.start_phase_timing(task_id, "completed")
-                self.cost_service.end_phase_timing(task_id, "completed", "completed")
-                # Lưu dữ liệu monitoring
                 try:
-                    await self.cost_service.save_monitoring_data(task_id)
+                    self.cost_service.end_phase_timing(task_id, "editing", "completed")
+                    # Bắt đầu ghi nhận thời gian cho phase hoàn thành
+                    self.cost_service.start_phase_timing(task_id, "completed")
+                    self.cost_service.end_phase_timing(task_id, "completed", "completed")
+                    # Lưu dữ liệu monitoring
+                    try:
+                        await self.cost_service.save_monitoring_data(task_id)
+                    except Exception as e:
+                        logger.error(f"Lỗi khi lưu dữ liệu monitoring: {str(e)}")
                 except Exception as e:
-                    logger.error(f"Lỗi khi lưu dữ liệu monitoring: {str(e)}")
+                    logger.error(f"Lỗi khi kết thúc timing cho phase editing: {str(e)}")
             
             logger.info(f"=== KẾT THÚC PHASE CHỈNH SỬA - THÀNH CÔNG ===")
             return result
@@ -154,10 +169,10 @@ class EditService(BaseEditPhase):
         task_id: str = None
     ) -> str:
         """
-        Chỉnh sửa và kết hợp nội dung từ các phần nghiên cứu
+        Chỉnh sửa và kết hợp nội dung từ các phần đã nghiên cứu
         
         Args:
-            sections: Danh sách các phần nghiên cứu
+            sections: Danh sách các phần đã nghiên cứu
             context: Context cho việc chỉnh sửa
             task_id: ID của task để ghi nhận chi phí
             
@@ -168,25 +183,16 @@ class EditService(BaseEditPhase):
             logger.info("Bắt đầu chỉnh sửa và kết hợp nội dung...")
             logger.info(f"EditService.edit_content: task_id = {task_id}")
             
-            # Kiểm tra sections
-            if not sections or len(sections) == 0:
-                logger.warning("Không có sections nào để chỉnh sửa")
-                return f"# {context['topic']}\n\nKhông có nội dung để chỉnh sửa."
+            # Log thông tin các phần
+            for i, section in enumerate(sections, 1):
+                logger.info(f"Section {i}: {section.title}")
+                logger.info(f"Section {i} có nội dung: {len(section.content)} ký tự")
             
-            # Tạo nội dung từ các sections để gửi đến LLM
-            combined_content = ""
-            for i, section in enumerate(sections):
-                # Kiểm tra và log thông tin về section
-                logger.info(f"Section {i+1}: {section.title}")
-                logger.info(f"Section {i+1} có nội dung: {len(section.content) if section.content else 0} ký tự")
-                
-                # Thêm nội dung section vào combined_content
-                combined_content += f"## {section.title}\n\n"
-                if section.content:
-                    combined_content += f"{section.content}\n\n"
-                else:
-                    logger.warning(f"Section {i+1} ({section.title}) không có nội dung")
-                    combined_content += "Không có nội dung cho phần này.\n\n"
+            # Kết hợp nội dung từ các phần
+            combined_content = "\n\n".join([
+                f"## {section.title}\n\n{section.content}" 
+                for section in sections
+            ])
             
             # Tạo prompt
             prompt = self.prompts.EDIT_CONTENT.format(
@@ -198,13 +204,16 @@ class EditService(BaseEditPhase):
             
             # Gọi LLM để chỉnh sửa nội dung
             logger.info(f"Gửi prompt chỉnh sửa nội dung đến LLM (độ dài: {len(prompt)} ký tự)")
+            response = ""
             try:
                 response = await self.llm_service.generate(
                     prompt=prompt,
                     task_id=task_id,
                     purpose="edit_content"
                 )
+                # Log phản hồi từ LLM để debug
                 logger.info(f"Nhận phản hồi từ LLM (độ dài: {len(response)} ký tự)")
+                logger.info(f"Phản hồi LLM (100 ký tự đầu): {response[:100]}")
                 
                 # Xử lý kết quả
                 content = response.strip()
@@ -213,32 +222,41 @@ class EditService(BaseEditPhase):
                 try:
                     content_data = json.loads(content)
                     if isinstance(content_data, dict):
-                        if "content" in content_data:
-                            content = content_data["content"]
-                            logger.info("Đã trích xuất nội dung từ JSON với trường 'content'")
-                        elif "text" in content_data:
-                            content = content_data["text"]
-                            logger.info("Đã trích xuất nội dung từ JSON với trường 'text'")
-                        elif "result" in content_data:
-                            content = content_data["result"]
-                            logger.info("Đã trích xuất nội dung từ JSON với trường 'result'")
+                        logger.info(f"Phản hồi là JSON với các trường: {list(content_data.keys())}")
+                        # Kiểm tra các trường có thể chứa nội dung
+                        for field in ["content", "text", "result", "markdown"]:
+                            if field in content_data and content_data[field]:
+                                content = content_data[field]
+                                logger.info(f"Đã trích xuất nội dung từ JSON với trường '{field}'")
+                                break
                 except json.JSONDecodeError:
                     # Nếu không phải JSON, sử dụng toàn bộ phản hồi
                     logger.info("Phản hồi không phải là JSON, sử dụng toàn bộ phản hồi")
                 
+                # Kiểm tra nội dung rỗng
+                if not content or len(content.strip()) == 0:
+                    logger.warning("Nội dung trống, sử dụng nội dung mặc định")
+                    return combined_content
+                
+                logger.info(f"Chỉnh sửa nội dung thành công, độ dài: {len(content)} ký tự")
                 return content
             except Exception as llm_error:
                 logger.error(f"Lỗi khi gọi LLM để chỉnh sửa nội dung: {str(llm_error)}")
+                # Ghi lại phản hồi nếu có
+                if response:
+                    logger.error(f"Phản hồi LLM trước khi xảy ra lỗi (100 ký tự đầu): {response[:100]}")
                 raise llm_error
-                
+            
         except Exception as e:
             logger.error(f"Lỗi khi chỉnh sửa nội dung: {str(e)}")
-            # Tạo nội dung mặc định từ các sections
-            default_content = f"# {context['topic']}\n\n"
-            for section in sections:
-                default_content += f"## {section.title}\n\n"
-                if section.content:
-                    default_content += f"{section.content}\n\n"
+            # Trả về nội dung mặc định nếu có lỗi
+            default_content = "\n\n".join([
+                f"# {context['topic']}\n\n" +
+                "\n\n".join([
+                    f"## {section.title}\n\n{section.content}" 
+                    for section in sections
+                ])
+            ])
             
             logger.info(f"Sử dụng nội dung mặc định do lỗi, độ dài: {len(default_content)} ký tự")
             return default_content
@@ -277,13 +295,15 @@ class EditService(BaseEditPhase):
             
             # Gọi LLM để tạo tiêu đề
             logger.info(f"Gửi prompt tạo tiêu đề đến LLM: {prompt[:100]}...")
+            response = ""
             try:
                 response = await self.llm_service.generate(
                     prompt=prompt,
                     task_id=task_id,
                     purpose="create_title"
                 )
-                logger.info(f"Nhận phản hồi từ LLM: {response}")
+                # Log phản hồi từ LLM để debug
+                logger.info(f"Nhận phản hồi từ LLM cho create_title: {response[:100]}...")
                 
                 # Xử lý kết quả
                 title = response.strip()
@@ -295,15 +315,13 @@ class EditService(BaseEditPhase):
                 try:
                     title_data = json.loads(title)
                     if isinstance(title_data, dict):
-                        if "title" in title_data:
-                            title = title_data["title"]
-                            logger.info("Đã trích xuất tiêu đề từ JSON với trường 'title'")
-                        elif "text" in title_data:
-                            title = title_data["text"]
-                            logger.info("Đã trích xuất tiêu đề từ JSON với trường 'text'")
-                        elif "result" in title_data:
-                            title = title_data["result"]
-                            logger.info("Đã trích xuất tiêu đề từ JSON với trường 'result'")
+                        logger.info(f"Phản hồi là JSON với các trường: {list(title_data.keys())}")
+                        # Kiểm tra các trường có thể chứa tiêu đề
+                        for field in ["title", "text", "result", "content"]:
+                            if field in title_data and title_data[field]:
+                                title = title_data[field]
+                                logger.info(f"Đã trích xuất tiêu đề từ JSON với trường '{field}'")
+                                break
                 except json.JSONDecodeError:
                     # Nếu không phải JSON, sử dụng toàn bộ phản hồi
                     logger.info("Phản hồi không phải là JSON, sử dụng toàn bộ phản hồi")
@@ -311,9 +329,17 @@ class EditService(BaseEditPhase):
                 # Loại bỏ dấu ngoặc kép nếu có
                 title = title.strip('"')
                 
+                # Kiểm tra tiêu đề rỗng
+                if not title or len(title.strip()) == 0:
+                    logger.warning("Tiêu đề trống, sử dụng tiêu đề mặc định")
+                    return context["topic"]
+                
                 return title
             except Exception as llm_error:
                 logger.error(f"Lỗi khi gọi LLM để tạo tiêu đề: {str(llm_error)}")
+                # Ghi lại phản hồi nếu có
+                if response:
+                    logger.error(f"Phản hồi LLM trước khi xảy ra lỗi: {response[:100]}...")
                 raise llm_error
             
         except Exception as e:

@@ -90,7 +90,25 @@ class CostMonitoringService:
         try:
             # Thử tải từ file
             cost_data_path = f"research_tasks/{task_id}/cost.json"
-            cost_data = self.storage_service.load_data(cost_data_path)
+            cost_data = None
+            
+            # Kiểm tra xem storage_service có phương thức load_data không
+            if hasattr(self.storage_service, 'load_data'):
+                cost_data = self.storage_service.load_data(cost_data_path)
+            else:
+                # Sử dụng phương thức load nếu load_data không tồn tại
+                # Chuyển đổi coroutine thành kết quả đồng bộ
+                try:
+                    cost_data = asyncio.run(self.storage_service.load(cost_data_path))
+                except RuntimeError:
+                    # Nếu đã có event loop đang chạy, sử dụng cách khác
+                    loop = asyncio.get_event_loop()
+                    if loop.is_running():
+                        # Tạo task mới và đợi kết quả
+                        future = asyncio.run_coroutine_threadsafe(self.storage_service.load(cost_data_path), loop)
+                        cost_data = future.result(timeout=5)  # Timeout 5 giây
+                    else:
+                        cost_data = loop.run_until_complete(self.storage_service.load(cost_data_path))
             
             if not cost_data:
                 logger.info(f"Không tìm thấy dữ liệu cost monitoring cho task {task_id}, tạo mới")
@@ -103,6 +121,7 @@ class CostMonitoringService:
             
         except Exception as e:
             logger.error(f"Lỗi khi tải cost monitoring cho task {task_id}: {str(e)}")
+            logger.info(f"Khởi tạo cost monitoring mới cho task {task_id}")
             return self.initialize_monitoring(task_id)
     
     def get_monitoring(self, task_id: str) -> ResearchCostMonitoring:
@@ -501,57 +520,65 @@ class CostMonitoringService:
         
         Args:
             task_id: ID của task
-            summary: Thông tin tổng hợp chi phí
+            summary: Tổng hợp chi phí
         """
-        if not self.storage_service or not hasattr(self.storage_service, 'load'):
+        if not task_id:
+            logger.error("Không thể cập nhật task.json: task_id là None")
+            return
+            
+        if not self.storage_service:
             logger.warning(f"Không thể cập nhật task.json cho task {task_id}: storage_service chưa được cấu hình")
             return
             
         try:
-            # Lấy dữ liệu monitoring
-            monitoring = self._cost_data.get(task_id)
-            if not monitoring:
-                logger.warning(f"Không tìm thấy cost monitoring cho task {task_id}")
-                return
-                
-            # Tính toán summary nếu chưa có
-            if not monitoring.summary or monitoring.summary.total_cost_usd == 0:
-                monitoring._update_summary()
-                
             # Đọc file task.json
+            task_file_path = f"research_tasks/{task_id}/task.json"
+            task_data = None
+            
             try:
-                task_path = f"research_tasks/{task_id}/task.json"
-                task_data = await self.storage_service.load(task_path)
+                # Kiểm tra xem storage_service có phương thức load_data không
+                if hasattr(self.storage_service, 'load_data'):
+                    task_data = self.storage_service.load_data(task_file_path)
+                else:
+                    # Sử dụng phương thức load nếu load_data không tồn tại
+                    task_data = await self.storage_service.load(task_file_path)
+                logger.info(f"Đã đọc dữ liệu từ file: {task_file_path}")
             except Exception as e:
-                logger.error(f"Lỗi khi đọc dữ liệu từ file {task_path}: {str(e)}")
-                logger.warning(f"Không thể đọc task.json cho task {task_id}: {str(e)}")
+                logger.error(f"Lỗi khi đọc file task.json: {str(e)}")
                 return
                 
-            # Kiểm tra xem task_data có tồn tại không
-            if task_data is None:
-                logger.warning(f"Dữ liệu task.json cho task {task_id} là None, không thể cập nhật")
+            if not task_data:
+                logger.error(f"Không tìm thấy dữ liệu trong file task.json cho task {task_id}")
                 return
                 
             # Cập nhật thông tin chi phí
             if "cost_info" not in task_data:
                 task_data["cost_info"] = {}
                 
-            summary = monitoring.summary
+            # Kiểm tra task_data["cost_info"] không phải None trước khi cập nhật
+            if task_data["cost_info"] is None:
+                task_data["cost_info"] = {}
+                
+            # Cập nhật thông tin chi phí
             task_data["cost_info"]["total_cost_usd"] = summary.total_cost_usd
             task_data["cost_info"]["llm_cost_usd"] = summary.llm_cost_usd
             task_data["cost_info"]["search_cost_usd"] = summary.search_cost_usd
             task_data["cost_info"]["total_tokens"] = summary.total_tokens
             task_data["cost_info"]["total_requests"] = summary.total_llm_requests + summary.total_search_requests
-            task_data["cost_info"]["last_updated"] = datetime.now().isoformat()
             
-            # Cập nhật thời gian
-            task_data["updated_at"] = datetime.now().isoformat()
-            
-            # Lưu lại vào file
-            await self.storage_service.save(task_data, task_path)
+            # Lưu lại file task.json
+            # Kiểm tra xem storage_service có phương thức save_data không
+            if hasattr(self.storage_service, 'save_data'):
+                self.storage_service.save_data(task_data, task_file_path)
+            else:
+                # Sử dụng phương thức save nếu save_data không tồn tại
+                await self.storage_service.save(task_data, task_file_path)
+            logger.info(f"Đã lưu dữ liệu vào file: {task_file_path}")
             logger.info(f"Đã cập nhật thông tin chi phí vào task.json cho task {task_id}")
+            
         except Exception as e:
             logger.error(f"Lỗi khi cập nhật task.json: {str(e)}")
+            return
 
     def _json_serializer(self, obj):
         """Hàm hỗ trợ serialize các object đặc biệt sang JSON"""
