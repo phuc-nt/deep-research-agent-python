@@ -152,3 +152,63 @@ class PerplexityService(BaseSearchService):
             # Nếu có lỗi, trả về danh sách trống hoặc kết quả mẫu
             logger.info("Trả về danh sách kết quả trống")
             return []
+
+    async def check_connection(self) -> bool:
+        """
+        Kiểm tra kết nối đến Perplexity API
+        
+        Returns:
+            bool: True nếu kết nối thành công, False nếu không
+        """
+        try:
+            # Kiểm tra API key
+            if not self.api_key or self.api_key == "your_perplexity_api_key":
+                logger.error("API key không hợp lệ hoặc chưa được cấu hình")
+                return False
+                
+            logger.info(f"Kiểm tra kết nối đến Perplexity API với API key: {self.api_key[:5]}...")
+            
+            # Thử gọi API với một query đơn giản
+            logger.info("Gửi request kiểm tra kết nối đến Perplexity API...")
+            response = await self.client.post(
+                "/chat/completions",
+                json={
+                    "model": "llama-3.1-sonar-small-128k-online",
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": "You are a helpful assistant."
+                        },
+                        {
+                            "role": "user",
+                            "content": "Hello, this is a connection test."
+                        }
+                    ],
+                    "temperature": 0.1,
+                    "max_tokens": 10,
+                    "stream": False
+                }
+            )
+            
+            # In thông tin response để debug
+            status_code = response.status_code
+            logger.info(f"Nhận được phản hồi từ Perplexity API với status code: {status_code}")
+            
+            if status_code != 200:
+                logger.error(f"Phản hồi không thành công: {response.text}")
+                return False
+                
+            # Kiểm tra nội dung phản hồi
+            data = response.json()
+            if "choices" not in data or not data["choices"]:
+                logger.error(f"Phản hồi không chứa dữ liệu choices: {data}")
+                return False
+                
+            logger.info("Kết nối đến Perplexity API thành công")
+            return True
+        except Exception as e:
+            logger.error(f"Lỗi khi kiểm tra kết nối đến Perplexity API: {str(e)}")
+            # In thêm thông tin chi tiết về lỗi
+            import traceback
+            logger.error(f"Chi tiết lỗi: {traceback.format_exc()}")
+            return False

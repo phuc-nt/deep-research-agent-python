@@ -42,8 +42,23 @@ class PrepareService(BasePreparePhase):
             # Khởi tạo search service tại đây để có thể await
             service_factory = get_service_factory()
             try:
+                # Sử dụng phương thức create_search_service đã được cải thiện với cơ chế retry
+                logger.info("Bắt đầu khởi tạo search service")
                 self.search_service = await service_factory.create_search_service()
                 logger.info(f"Đã khởi tạo search service: {self.search_service.__class__.__name__}")
+                
+                # Kiểm tra kết nối
+                if hasattr(self.search_service, 'check_connection'):
+                    logger.info("Kiểm tra kết nối đến search service")
+                    is_connected = await self.search_service.check_connection()
+                    if is_connected:
+                        logger.info("Kết nối đến search service thành công")
+                    else:
+                        logger.warning("Kết nối đến search service thất bại")
+                        # Thử khởi tạo lại với DummySearchService
+                        from app.services.core.search.dummy import DummySearchService
+                        logger.info("Sử dụng DummySearchService thay thế")
+                        self.search_service = DummySearchService()
             except Exception as e:
                 logger.error(f"Không thể khởi tạo search service: {str(e)}")
                 logger.warning("Tiếp tục quy trình mà không có search service")
@@ -368,8 +383,10 @@ class PrepareService(BasePreparePhase):
             
             # Kiểm tra search_service trước khi sử dụng
             if self.search_service is not None:
+                logger.info(f"Search service có sẵn: {self.search_service.__class__.__name__}")
                 try:
                     # Gọi search API
+                    logger.info(f"Bắt đầu tìm kiếm với search service")
                     search_results = await self.search_service.search(
                         query=search_query,
                         task_id=task_id,
@@ -382,6 +399,23 @@ class PrepareService(BasePreparePhase):
                     search_results = []
             else:
                 logger.warning("Search service không khả dụng, tiếp tục tạo dàn ý mà không có kết quả tìm kiếm")
+                logger.info("Thử khởi tạo lại search service")
+                try:
+                    service_factory = get_service_factory()
+                    self.search_service = await service_factory.create_search_service()
+                    logger.info(f"Đã khởi tạo lại search service: {self.search_service.__class__.__name__}")
+                    
+                    # Thử tìm kiếm lại
+                    logger.info(f"Thử tìm kiếm lại với search service mới khởi tạo")
+                    search_results = await self.search_service.search(
+                        query=search_query,
+                        task_id=task_id,
+                        purpose="search_for_outline_retry"
+                    )
+                    logger.info(f"Tìm thấy {len(search_results)} kết quả liên quan sau khi thử lại")
+                except Exception as retry_error:
+                    logger.error(f"Lỗi khi thử lại tìm kiếm thông tin: {str(retry_error)}")
+                    search_results = []
             
             # Tạo prompt với hoặc không có search_results
             if search_results:

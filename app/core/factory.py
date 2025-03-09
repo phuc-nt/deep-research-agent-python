@@ -71,10 +71,24 @@ class ServiceFactory:
         
         try:
             if provider == "perplexity":
+                # Debug log để kiểm tra API key
+                logger.info(f"PERPLEXITY_API_KEY: {self.config.PERPLEXITY_API_KEY[:10]}... (length: {len(self.config.PERPLEXITY_API_KEY)})")
+                
                 # Kiểm tra API key trước khi khởi tạo service
                 if not self.config.PERPLEXITY_API_KEY or self.config.PERPLEXITY_API_KEY == "your_perplexity_api_key":
                     logger.error("PERPLEXITY_API_KEY không hợp lệ hoặc chưa được cấu hình")
-                    raise ValueError("PERPLEXITY_API_KEY không hợp lệ hoặc chưa được cấu hình")
+                    # Thử sử dụng Google nếu có API key
+                    if (self.config.GOOGLE_API_KEY and self.config.GOOGLE_API_KEY != "your_google_api_key" and 
+                        self.config.GOOGLE_CSE_ID and self.config.GOOGLE_CSE_ID != "your_google_cse_id"):
+                        logger.info("Thử sử dụng Google search service thay thế")
+                        return await self.get_search_service("google")
+                    else:
+                        # Nếu không có API key nào hợp lệ, sử dụng DummySearchService
+                        logger.info("Không có API key hợp lệ cho bất kỳ search provider nào, sử dụng DummySearchService")
+                        from app.services.core.search.dummy import DummySearchService
+                        service = DummySearchService()
+                        self.services[service_key] = service
+                        return service
                 service = PerplexityService()
                 # Thử gọi một phương thức đơn giản để kiểm tra kết nối
                 logger.info(f"Đã khởi tạo Perplexity service với API key: {self.config.PERPLEXITY_API_KEY[:5]}...")
@@ -82,7 +96,17 @@ class ServiceFactory:
                 # Kiểm tra API key trước khi khởi tạo service
                 if not self.config.GOOGLE_API_KEY or self.config.GOOGLE_API_KEY == "your_google_api_key" or not self.config.GOOGLE_CSE_ID or self.config.GOOGLE_CSE_ID == "your_google_cse_id":
                     logger.error("GOOGLE_API_KEY hoặc GOOGLE_CSE_ID không hợp lệ hoặc chưa được cấu hình")
-                    raise ValueError("GOOGLE_API_KEY hoặc GOOGLE_CSE_ID không hợp lệ hoặc chưa được cấu hình")
+                    # Thử sử dụng Perplexity nếu có API key
+                    if self.config.PERPLEXITY_API_KEY and self.config.PERPLEXITY_API_KEY != "your_perplexity_api_key":
+                        logger.info("Thử sử dụng Perplexity search service thay thế")
+                        return await self.get_search_service("perplexity")
+                    else:
+                        # Nếu không có API key nào hợp lệ, sử dụng DummySearchService
+                        logger.info("Không có API key hợp lệ cho bất kỳ search provider nào, sử dụng DummySearchService")
+                        from app.services.core.search.dummy import DummySearchService
+                        service = DummySearchService()
+                        self.services[service_key] = service
+                        return service
                 service = GoogleService()
                 logger.info(f"Đã khởi tạo Google service với API key: {self.config.GOOGLE_API_KEY[:5]}...")
             else:
@@ -92,19 +116,23 @@ class ServiceFactory:
                     logger.info(f"Thử sử dụng provider mặc định: {self.config.DEFAULT_SEARCH_PROVIDER}")
                     return await self.get_search_service(self.config.DEFAULT_SEARCH_PROVIDER)
                 else:
-                    raise ValueError(f"Không hỗ trợ search provider: {provider}")
+                    # Nếu không có provider nào hợp lệ, sử dụng DummySearchService
+                    logger.info("Không có provider hợp lệ, sử dụng DummySearchService")
+                    from app.services.core.search.dummy import DummySearchService
+                    service = DummySearchService()
+                    self.services[service_key] = service
+                    return service
             
             self.services[service_key] = service
             return service
         except Exception as e:
             logger.error(f"Lỗi khi tạo search service cho provider {provider}: {str(e)}")
-            # Fallback to default provider if different
-            if provider != self.config.DEFAULT_SEARCH_PROVIDER:
-                logger.info(f"Thử sử dụng provider mặc định: {self.config.DEFAULT_SEARCH_PROVIDER}")
-                return await self.get_search_service(self.config.DEFAULT_SEARCH_PROVIDER)
-            # Nếu đã là provider mặc định mà vẫn lỗi, trả về None
-            logger.error(f"Không thể tạo search service với provider mặc định: {str(e)}")
-            return None
+            # Nếu có lỗi, sử dụng DummySearchService
+            logger.info("Sử dụng DummySearchService do lỗi khi khởi tạo search service")
+            from app.services.core.search.dummy import DummySearchService
+            service = DummySearchService()
+            self.services[service_key] = service
+            return service
     
     def get_storage_service(self, provider: Optional[str] = None) -> Any:
         """Get storage service instance by provider name"""
@@ -194,7 +222,47 @@ class ServiceFactory:
         """
         provider = provider or self.config.DEFAULT_SEARCH_PROVIDER
         logger.info(f"Tạo search service với provider {provider}")
-        return await self.get_search_service(provider)
+        
+        # Thêm cơ chế retry
+        max_retries = 3
+        retry_delay = 1  # giây
+        
+        for attempt in range(max_retries):
+            try:
+                service = await self.get_search_service(provider)
+                
+                # Kiểm tra kết nối
+                if hasattr(service, 'check_connection'):
+                    logger.info(f"Kiểm tra kết nối đến {provider} search service (lần thử {attempt + 1}/{max_retries})")
+                    is_connected = await service.check_connection()
+                    if is_connected:
+                        logger.info(f"Kết nối thành công đến {provider} search service")
+                        return service
+                    else:
+                        logger.warning(f"Không thể kết nối đến {provider} search service (lần thử {attempt + 1}/{max_retries})")
+                        if attempt < max_retries - 1:
+                            logger.info(f"Thử lại sau {retry_delay} giây...")
+                            import asyncio
+                            await asyncio.sleep(retry_delay)
+                            continue
+                else:
+                    # Nếu service không có phương thức check_connection, giả định là kết nối thành công
+                    return service
+            except Exception as e:
+                logger.error(f"Lỗi khi tạo search service với provider {provider} (lần thử {attempt + 1}/{max_retries}): {str(e)}")
+                if attempt < max_retries - 1:
+                    logger.info(f"Thử lại sau {retry_delay} giây...")
+                    import asyncio
+                    await asyncio.sleep(retry_delay)
+                else:
+                    logger.error(f"Đã thử {max_retries} lần nhưng không thành công, sử dụng DummySearchService")
+                    from app.services.core.search.dummy import DummySearchService
+                    return DummySearchService()
+        
+        # Nếu tất cả các lần thử đều thất bại, sử dụng DummySearchService
+        logger.warning(f"Không thể kết nối đến bất kỳ search service nào sau {max_retries} lần thử, sử dụng DummySearchService")
+        from app.services.core.search.dummy import DummySearchService
+        return DummySearchService()
 
 # Singleton instance
 service_factory = None
