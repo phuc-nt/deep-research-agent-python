@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.11.10
 
 WORKDIR /app
 
@@ -35,4 +35,4 @@ RUN chmod -R 755 /app
 EXPOSE 8000
 
 # Lệnh khởi động ứng dụng
-CMD ["uvicorn", "app.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["uvicorn", "app.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"] 
