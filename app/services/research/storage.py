@@ -99,8 +99,14 @@ class ResearchStorageService:
             logger.error(f"Lỗi khi lưu thông tin task {task.id}: {str(e)}")
             raise
 
-    def update_cost_info(self, task_id: str, cost_info: ResearchCostInfo) -> None:
-        """Cập nhật thông tin chi phí cho một task"""
+    async def update_cost_info(self, task_id: str, cost_info: ResearchCostInfo) -> None:
+        """
+        Cập nhật thông tin chi phí cho một task và lưu lên GitHub
+        
+        Args:
+            task_id: ID của task
+            cost_info: Thông tin chi phí cần cập nhật
+        """
         try:
             # Lấy thông tin cơ bản hiện có
             task_info = self.get_basic_task_info(task_id)
@@ -116,16 +122,55 @@ class ResearchStorageService:
                 # Nếu cost_info đã là dict
                 task_info["cost_info"] = cost_info
             
-            # Lưu lại vào file
+            # Lưu vào file local
             task_path = self._get_task_path(task_id, "task.json")
             full_path = self._get_full_path(task_path)
             
             with open(full_path, "w", encoding="utf-8") as f:
                 json.dump(task_info, f, ensure_ascii=False, indent=2, default=self._json_serializer)
             
-            logger.info(f"Đã cập nhật cost_info cho task {task_id}")
+            logger.info(f"Đã cập nhật cost_info cho task {task_id} vào file local")
+            
+            # Lưu cost.json riêng lên GitHub
+            try:
+                # Tạo nội dung chi tiết cho cost.json
+                cost_detail = {
+                    "task_id": task_id,
+                    "updated_at": datetime.utcnow().isoformat(),
+                    "cost_info": cost_info.dict() if hasattr(cost_info, 'dict') else cost_info,
+                    "task_info": {
+                        "query": task_info.get("request", {}).get("query", ""),
+                        "topic": task_info.get("request", {}).get("topic", ""),
+                        "status": task_info.get("status", ""),
+                        "created_at": task_info.get("created_at", ""),
+                    }
+                }
+                
+                # Chuyển sang JSON string
+                cost_json = json.dumps(cost_detail, ensure_ascii=False, indent=2, default=self._json_serializer)
+                
+                # Lưu lên GitHub
+                github_service = get_service_factory().get_storage_service("github")
+                file_path = f"researches/{task_id}/cost.json"
+                github_url = await github_service.save(cost_json, file_path)
+                
+                # Cập nhật URL vào cost_info
+                if hasattr(cost_info, 'cost_report_url'):
+                    cost_info.cost_report_url = github_url
+                    # Cập nhật lại file local với URL mới
+                    task_info["cost_info"]["cost_report_url"] = github_url
+                    with open(full_path, "w", encoding="utf-8") as f:
+                        json.dump(task_info, f, ensure_ascii=False, indent=2, default=self._json_serializer)
+                
+                logger.info(f"Đã lưu cost.json lên GitHub: {github_url}")
+                
+            except Exception as e:
+                logger.error(f"Lỗi khi lưu cost.json lên GitHub cho task {task_id}: {str(e)}")
+                # Không raise exception để không ảnh hưởng đến luồng chính
+            
         except Exception as e:
             logger.error(f"Lỗi khi cập nhật cost_info cho task {task_id}: {str(e)}")
+            raise
 
     async def update_task_with_cost_info(self, task: ResearchResponse, cost_info: ResearchCostInfo) -> ResearchResponse:
         """Cập nhật task với thông tin chi phí và lưu vào file"""
