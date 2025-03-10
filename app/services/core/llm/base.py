@@ -33,7 +33,7 @@ class BaseLLMService(ABC):
     
     def _log_request_cost(
         self, 
-        task_id: Optional[str], 
+        task_id: str, 
         model: str, 
         input_tokens: int, 
         output_tokens: int, 
@@ -46,6 +46,33 @@ class BaseLLMService(ABC):
             try:
                 cost_service = get_cost_service()
                 cost_service.log_llm_request(
+                    task_id=task_id,
+                    model=model,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    prompt=prompt,
+                    duration_ms=duration_ms,
+                    endpoint=self.name,
+                    purpose=purpose
+                )
+            except Exception as e:
+                logger.error(f"Error logging LLM request cost: {str(e)}")
+    
+    async def _log_request_cost(
+        self, 
+        task_id: str, 
+        model: str, 
+        input_tokens: int, 
+        output_tokens: int, 
+        prompt: str, 
+        duration_ms: int, 
+        purpose: Optional[str] = None
+    ):
+        """Log request cost if task_id is provided"""
+        if task_id:
+            try:
+                cost_service = await get_cost_service()
+                await cost_service.log_llm_request(
                     task_id=task_id,
                     model=model,
                     input_tokens=input_tokens,
@@ -145,3 +172,71 @@ class BaseLLMService(ABC):
     async def stream(self, prompt: str, **kwargs: Dict[str, Any]) -> str:
         """Stream text from prompt"""
         pass 
+
+    def count_tokens_and_log(
+        self, 
+        prompt: str, 
+        response: str, 
+        task_id: Optional[str] = None, 
+        duration_ms: Optional[int] = None,
+        purpose: Optional[str] = None
+    ):
+        """Count tokens and log request cost"""
+        # Đếm tokens
+        input_token_count = self.count_tokens(prompt)
+        output_token_count = self.count_tokens(response)
+        
+        # Log request cost nếu có task_id
+        if task_id:
+            # Xác định model name
+            model_name = "unknown"
+            if hasattr(self, "model_name"):
+                model_name = self.model_name
+            elif hasattr(self, "model"):
+                model_name = self.model
+            elif "MODEL_NAME" in self.config:
+                model_name = self.config["MODEL_NAME"]
+                
+            self._log_request_cost(
+                task_id=task_id,
+                model=model_name,
+                input_tokens=input_token_count,
+                output_tokens=output_token_count,
+                prompt=prompt,
+                duration_ms=duration_ms,
+                purpose=purpose
+            )
+
+    async def count_tokens_and_log(
+        self, 
+        prompt: str, 
+        response: str, 
+        task_id: Optional[str] = None, 
+        duration_ms: Optional[int] = None,
+        purpose: Optional[str] = None
+    ):
+        """Count tokens and log request cost"""
+        # Đếm tokens
+        input_token_count = self.count_tokens(prompt)
+        output_token_count = self.count_tokens(response)
+        
+        # Log request cost nếu có task_id
+        if task_id:
+            # Xác định model name
+            model_name = "unknown"
+            if hasattr(self, "model_name"):
+                model_name = self.model_name
+            elif hasattr(self, "model"):
+                model_name = self.model
+            elif "MODEL_NAME" in self.config:
+                model_name = self.config["MODEL_NAME"]
+                
+            await self._log_request_cost(
+                task_id=task_id,
+                model=model_name,
+                input_tokens=input_token_count,
+                output_tokens=output_token_count,
+                prompt=prompt,
+                duration_ms=duration_ms,
+                purpose=purpose
+            ) 

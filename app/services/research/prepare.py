@@ -23,7 +23,13 @@ class PrepareService(BasePreparePhase):
         self.llm_service = service_factory.create_llm_service_for_phase("prepare")
         self.search_service = None
         # Khởi tạo cost monitoring service
-        self.cost_service = service_factory.get_cost_monitoring_service()
+        self.cost_service = None
+        
+    async def initialize(self):
+        """Khởi tạo các service bất đồng bộ"""
+        if self.cost_service is None:
+            service_factory = get_service_factory()
+            self.cost_service = await service_factory.get_cost_monitoring_service()
     
     async def execute(self, request: ResearchRequest) -> ResearchOutline:
         """
@@ -39,6 +45,9 @@ class PrepareService(BasePreparePhase):
             PrepareError: Nếu có lỗi trong quá trình chuẩn bị
         """
         try:
+            # Khởi tạo các service bất đồng bộ
+            await self.initialize()
+            
             # Khởi tạo search service tại đây để có thể await
             service_factory = get_service_factory()
             try:
@@ -72,7 +81,7 @@ class PrepareService(BasePreparePhase):
             
             # Bắt đầu ghi nhận thời gian cho phase phân tích
             if task_id:
-                self.cost_service.start_phase_timing(task_id, "analyzing")
+                await self.cost_service.start_phase_timing(task_id, "analyzing")
             
             # Phân tích yêu cầu
             logger.info("Bắt đầu phân tích yêu cầu nghiên cứu...")
@@ -93,7 +102,7 @@ class PrepareService(BasePreparePhase):
             
             # Bắt đầu ghi nhận thời gian cho phase tạo dàn ý
             if task_id:
-                self.cost_service.start_phase_timing(task_id, "outlining")
+                await self.cost_service.start_phase_timing(task_id, "outlining")
             
             # Tạo dàn ý
             logger.info("Bắt đầu tạo dàn ý nghiên cứu...")
@@ -104,7 +113,7 @@ class PrepareService(BasePreparePhase):
             
             # Kết thúc ghi nhận thời gian cho phase tạo dàn ý
             if task_id:
-                self.cost_service.end_phase_timing(task_id, "outlining", "completed")
+                await self.cost_service.end_phase_timing(task_id, "outlining", "completed")
                 # Lưu dữ liệu monitoring
                 await self.cost_service.save_monitoring_data(task_id)
                 

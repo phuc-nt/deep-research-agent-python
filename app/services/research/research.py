@@ -24,7 +24,13 @@ class ResearchService(BaseResearchPhase):
         self.search_service = None
         self.update_progress_callback = None
         # Khởi tạo cost monitoring service
-        self.cost_service = service_factory.get_cost_monitoring_service()
+        self.cost_service = None
+        
+    async def initialize(self):
+        """Khởi tạo các service bất đồng bộ"""
+        if self.cost_service is None:
+            service_factory = get_service_factory()
+            self.cost_service = await service_factory.get_cost_monitoring_service()
     
     async def execute(
         self, 
@@ -32,18 +38,11 @@ class ResearchService(BaseResearchPhase):
         outline: ResearchOutline
     ) -> List[ResearchSection]:
         """
-        Thực hiện nghiên cứu dựa trên dàn ý
-        
-        Args:
-            request: Yêu cầu nghiên cứu
-            outline: Dàn ý nghiên cứu
-            
-        Returns:
-            List[ResearchSection]: Danh sách các phần đã nghiên cứu
-            
-        Raises:
-            ResearchError: Nếu có lỗi trong quá trình nghiên cứu
+        Thực thi phase nghiên cứu
         """
+        # Khởi tạo các service bất đồng bộ
+        await self.initialize()
+        
         try:
             service_factory = get_service_factory()
             self.search_service = await service_factory.create_search_service()
@@ -64,7 +63,7 @@ class ResearchService(BaseResearchPhase):
             # Bắt đầu ghi nhận thời gian cho phase nghiên cứu
             task_id = outline.task_id if hasattr(outline, 'task_id') else None
             if task_id:
-                self.cost_service.start_phase_timing(task_id, "researching")
+                await self.cost_service.start_phase_timing(task_id, "researching")
             
             # Nghiên cứu từng phần
             researched_sections = []
@@ -89,7 +88,7 @@ class ResearchService(BaseResearchPhase):
                 # Bắt đầu ghi nhận thời gian cho section
                 if task_id:
                     section_id = f"section_{i+1}"
-                    self.cost_service.start_section_timing(task_id, section_id, section.title)
+                    await self.cost_service.start_section_timing(task_id, section_id, section.title)
                 
                 # Nghiên cứu phần này
                 researched_section = await self.research_section(section, context, task_id)
@@ -97,7 +96,7 @@ class ResearchService(BaseResearchPhase):
                 
                 # Kết thúc ghi nhận thời gian cho section
                 if task_id:
-                    self.cost_service.end_section_timing(task_id, section_id, "completed")
+                    await self.cost_service.end_section_timing(task_id, section_id, "completed")
                 
                 logger.info(f"Đã hoàn thành nghiên cứu phần {i+1}/{total_sections}: {section.title}")
                 logger.info(f"Độ dài nội dung: {len(researched_section.content) if researched_section.content else 0} ký tự")
@@ -105,7 +104,7 @@ class ResearchService(BaseResearchPhase):
             
             # Kết thúc ghi nhận thời gian cho phase nghiên cứu
             if task_id:
-                self.cost_service.end_phase_timing(task_id, "researching", "completed")
+                await self.cost_service.end_phase_timing(task_id, "researching", "completed")
                 # Lưu dữ liệu monitoring
                 await self.cost_service.save_monitoring_data(task_id)
             

@@ -168,7 +168,7 @@ class ServiceFactory:
         """
         return self.get_storage_service(provider)
     
-    def get_cost_monitoring_service(self) -> Any:
+    async def get_cost_monitoring_service(self) -> Any:
         """Get cost monitoring service instance"""
         service_key = "cost_monitoring"
         
@@ -183,7 +183,7 @@ class ServiceFactory:
             from app.services.core.monitoring.cost import get_cost_service
             
             # Tạo cost service
-            service = get_cost_service(storage_service)
+            service = await get_cost_service(storage_service)
             
             self.services[service_key] = service
             logger.info(f"Đã tạo cost monitoring service")

@@ -99,7 +99,7 @@ class PerplexityService(BaseSearchService):
                     
                     # Lấy cost monitoring service
                     factory = get_service_factory()
-                    cost_service = factory.get_cost_monitoring_service()
+                    cost_service = await factory.get_cost_monitoring_service()
                     
                     # Cập nhật log_search_request để bao gồm thông tin token
                     cost_service.log_search_request(
