@@ -25,7 +25,13 @@ class EditService(BaseEditPhase):
         service_factory = get_service_factory()
         self.llm_service = service_factory.create_llm_service_for_phase("edit")
         # Khởi tạo cost monitoring service
-        self.cost_service = service_factory.get_cost_monitoring_service()
+        self.cost_service = None
+        
+    async def initialize(self):
+        """Khởi tạo các service bất đồng bộ"""
+        if self.cost_service is None:
+            service_factory = get_service_factory()
+            self.cost_service = await service_factory.get_cost_monitoring_service()
     
     async def execute(
         self, 
@@ -48,6 +54,9 @@ class EditService(BaseEditPhase):
             EditError: Nếu có lỗi trong quá trình chỉnh sửa
         """
         try:
+            # Khởi tạo các service bất đồng bộ
+            await self.initialize()
+            
             logger.info(f"=== BẮT ĐẦU PHASE CHỈNH SỬA ===")
             logger.info(f"Bắt đầu chỉnh sửa nghiên cứu cho topic: {request.topic}")
             logger.info(f"Số phần cần chỉnh sửa: {len(sections)}")
@@ -78,7 +87,7 @@ class EditService(BaseEditPhase):
             # Bắt đầu ghi nhận thời gian cho phase chỉnh sửa
             if task_id:
                 try:
-                    self.cost_service.start_phase_timing(task_id, "editing")
+                    await self.cost_service.start_phase_timing(task_id, "editing")
                 except Exception as e:
                     logger.error(f"Lỗi khi bắt đầu timing cho phase editing: {str(e)}")
             
@@ -140,10 +149,10 @@ class EditService(BaseEditPhase):
             # Kết thúc ghi nhận thời gian cho phase chỉnh sửa
             if task_id:
                 try:
-                    self.cost_service.end_phase_timing(task_id, "editing", "completed")
+                    await self.cost_service.end_phase_timing(task_id, "editing", "completed")
                     # Bắt đầu ghi nhận thời gian cho phase hoàn thành
-                    self.cost_service.start_phase_timing(task_id, "completed")
-                    self.cost_service.end_phase_timing(task_id, "completed", "completed")
+                    await self.cost_service.start_phase_timing(task_id, "completed")
+                    await self.cost_service.end_phase_timing(task_id, "completed", "completed")
                     # Lưu dữ liệu monitoring
                     try:
                         await self.cost_service.save_monitoring_data(task_id)

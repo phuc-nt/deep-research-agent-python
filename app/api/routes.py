@@ -1246,7 +1246,7 @@ async def get_research_cost(research_id: str):
         
         # Tạo cost monitoring service
         service_factory = get_service_factory()
-        cost_service = service_factory.get_cost_monitoring_service()
+        cost_service = await service_factory.get_cost_monitoring_service()
         
         # Lấy thông tin chi phí chi tiết
         try:

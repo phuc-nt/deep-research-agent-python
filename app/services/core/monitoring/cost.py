@@ -156,7 +156,7 @@ class CostMonitoringService:
         
         return self.search_pricing[provider]
     
-    def log_llm_request(
+    async def log_llm_request(
         self, 
         task_id: str,
         model: str,
@@ -184,7 +184,7 @@ class CostMonitoringService:
         cost_usd = self._calculate_llm_cost(model, input_tokens, output_tokens)
         
         # Lấy monitoring data
-        monitoring = self.get_monitoring(task_id)
+        monitoring = await self.get_monitoring(task_id)
         
         # Tạo LLM cost entry
         llm_cost = LLMCost(
@@ -210,14 +210,14 @@ class CostMonitoringService:
         
         # Cập nhật task.json
         try:
-            summary = self.get_summary(task_id)
+            summary = await self.get_summary(task_id)
             asyncio.create_task(self._update_task_json(task_id, summary))
         except Exception as e:
             logger.error(f"Lỗi khi cập nhật task.json: {str(e)}")
         
         logger.info(f"Đã ghi nhận LLM request cho task {task_id}: {input_tokens} input, {output_tokens} output, {cost_usd:.6f} USD")
 
-    def log_search_request(
+    async def log_search_request(
         self,
         task_id: str,
         provider: str,
@@ -255,7 +255,7 @@ class CostMonitoringService:
             logger.info(f"Tính chi phí search dựa trên cố định: {cost_usd:.6f} USD")
         
         # Lấy monitoring data
-        monitoring = self.get_monitoring(task_id)
+        monitoring = await self.get_monitoring(task_id)
         
         # Tạo Search cost entry
         search_cost = SearchCost(
@@ -281,16 +281,16 @@ class CostMonitoringService:
         
         # Cập nhật task.json
         try:
-            summary = self.get_summary(task_id)
+            summary = await self.get_summary(task_id)
             asyncio.create_task(self._update_task_json(task_id, summary))
         except Exception as e:
             logger.error(f"Lỗi khi cập nhật task.json: {str(e)}")
         
         logger.info(f"Đã ghi nhận Search request cho task {task_id}: {provider}, {cost_usd:.6f} USD")
 
-    def start_phase_timing(self, task_id: str, phase_name: str) -> str:
+    async def start_phase_timing(self, task_id: str, phase_name: str) -> str:
         """Bắt đầu timing cho một phase"""
-        monitoring = self.get_monitoring(task_id)
+        monitoring = await self.get_monitoring(task_id)
         phase_id = monitoring.start_phase(phase_name)
         
         # Lưu dữ liệu
@@ -299,22 +299,22 @@ class CostMonitoringService:
         logger.info(f"Bắt đầu timing cho phase {phase_name} của task {task_id}")
         return phase_id
     
-    def end_phase_timing(self, task_id: str, phase_name: str, status: str = "completed") -> None:
+    async def end_phase_timing(self, task_id: str, phase_name: str, status: str = "completed") -> None:
         """Kết thúc timing cho một phase"""
-        monitoring = self.get_monitoring(task_id)
+        monitoring = await self.get_monitoring(task_id)
         monitoring.end_phase(phase_name, status)
         
         # Lưu dữ liệu
         self._save_cost_data(task_id)
         
         # Cập nhật task.json với thông tin chi phí mới nhất
-        self._update_task_json(task_id, monitoring.summary)
+        asyncio.create_task(self._update_task_json(task_id, monitoring.summary))
         
         logger.info(f"Kết thúc timing cho phase {phase_name} của task {task_id} với trạng thái {status}")
     
-    def start_section_timing(self, task_id: str, section_id: str, section_title: str) -> str:
+    async def start_section_timing(self, task_id: str, section_id: str, section_title: str) -> str:
         """Bắt đầu timing cho một section"""
-        monitoring = self.get_monitoring(task_id)
+        monitoring = await self.get_monitoring(task_id)
         section_id = monitoring.start_section(section_id, section_title)
         
         # Lưu dữ liệu
@@ -323,9 +323,9 @@ class CostMonitoringService:
         logger.info(f"Bắt đầu timing cho section {section_title} của task {task_id}")
         return section_id
     
-    def end_section_timing(self, task_id: str, section_id: str, status: str = "completed") -> None:
+    async def end_section_timing(self, task_id: str, section_id: str, status: str = "completed") -> None:
         """Kết thúc timing cho một section"""
-        monitoring = self.get_monitoring(task_id)
+        monitoring = await self.get_monitoring(task_id)
         monitoring.end_section(section_id, status)
         
         # Lưu dữ liệu
@@ -336,7 +336,7 @@ class CostMonitoringService:
         
         logger.info(f"Kết thúc timing cho section {section_id} của task {task_id} với trạng thái {status}")
     
-    def get_summary(self, task_id: str) -> CostSummary:
+    async def get_summary(self, task_id: str) -> CostSummary:
         """
         Lấy tổng hợp chi phí cho một task
         
@@ -346,7 +346,7 @@ class CostMonitoringService:
         Returns:
             CostSummary: Tổng hợp chi phí
         """
-        monitoring = self.get_monitoring(task_id)
+        monitoring = await self.get_monitoring(task_id)
         
         # Cập nhật summary trước khi trả về
         self._update_summary(monitoring)
@@ -409,13 +409,13 @@ class CostMonitoringService:
             logger.error(f"Lỗi khi đảm bảo cost data tồn tại: {str(e)}")
             return False
     
-    def push_to_github(self, task_id: str, github_storage=None) -> Optional[str]:
+    async def push_to_github(self, task_id: str, github_storage=None) -> Optional[str]:
         """Đẩy báo cáo chi phí lên GitHub"""
         if not github_storage:
             logger.warning(f"Không thể đẩy cost report lên GitHub cho task {task_id}: github_storage chưa được cung cấp")
             return None
         
-        monitoring = self.get_monitoring(task_id)
+        monitoring = await self.get_monitoring(task_id)
         
         try:
             # Tạo báo cáo markdown
@@ -423,7 +423,7 @@ class CostMonitoringService:
             
             # Đẩy lên GitHub
             file_name = f"cost_report_{task_id}.md"
-            github_url = github_storage.save_cost_report(
+            github_url = await github_storage.save_cost_report(
                 file_name,
                 report_content,
                 f"Cost Report for Research Task {task_id}"
@@ -432,7 +432,7 @@ class CostMonitoringService:
             # Cập nhật URL báo cáo vào task.json
             try:
                 task_path = f"research_tasks/{task_id}/task.json"
-                task_data = self.load_data(task_path)
+                task_data = await self.load_data(task_path)
                 
                 # Đảm bảo có cost_info
                 if "cost_info" not in task_data:
@@ -443,7 +443,7 @@ class CostMonitoringService:
                 task_data["updated_at"] = datetime.now().isoformat()
                 
                 # Lưu lại vào file
-                self.save_data(task_data, task_path)
+                await self.save_data(task_path, task_data)
                 
                 logger.info(f"Đã cập nhật cost_report_url trong task.json cho task {task_id}")
             except Exception as e:
@@ -565,7 +565,7 @@ class CostMonitoringService:
             # Lưu lại file task.json
             # Kiểm tra xem storage_service có phương thức save_data không
             if hasattr(self.storage_service, 'save_data'):
-                self.storage_service.save_data(task_data, task_file_path)
+                await self.storage_service.save_data(task_data, task_file_path)
             else:
                 # Sử dụng phương thức save nếu save_data không tồn tại
                 await self.storage_service.save(task_data, task_file_path)
@@ -582,7 +582,7 @@ class CostMonitoringService:
             return obj.isoformat()
         raise TypeError(f"Type {type(obj)} not serializable")
 
-    def save_data(self, file_path: str, data: Any) -> None:
+    async def save_data(self, file_path: str, data: Any) -> None:
         """
         Phương thức đồng bộ để lưu dữ liệu vào file
         
@@ -607,7 +607,7 @@ class CostMonitoringService:
             logger.error(f"Lỗi khi lưu dữ liệu vào file {file_path}: {str(e)}")
             raise
 
-    def load_data(self, file_path: str) -> Any:
+    async def load_data(self, file_path: str) -> Any:
         """
         Phương thức đồng bộ để đọc dữ liệu từ file
         
@@ -635,7 +635,7 @@ class CostMonitoringService:
             logger.error(f"Lỗi khi đọc dữ liệu từ file {file_path}: {str(e)}")
             raise
 
-    def _get_monitoring_data(self, task_id: str) -> Optional[ResearchCostMonitoring]:
+    async def _get_monitoring_data(self, task_id: str) -> Optional[ResearchCostMonitoring]:
         """
         Lấy dữ liệu monitoring cho task
         
@@ -662,7 +662,7 @@ class CostMonitoringService:
         """
         try:
             # Lấy dữ liệu monitoring
-            monitoring = self._get_monitoring_data(task_id)
+            monitoring = await self._get_monitoring_data(task_id)
             if not monitoring:
                 return False
             
@@ -800,7 +800,7 @@ class CostMonitoringService:
 # Singleton instance
 cost_service = None
 
-def get_cost_service(storage_service=None):
+async def get_cost_service(storage_service=None):
     """Lấy singleton instance của CostMonitoringService"""
     global cost_service
     if not cost_service:
