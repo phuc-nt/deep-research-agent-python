@@ -145,24 +145,103 @@ GET /api/v1/research
 
 - [Tài liệu API đầy đủ](docs/api.md) - Chi tiết về các endpoints, request/response và sequence diagrams
 
+## Cấu trúc Source Code
+
+### Tổng quan
+```
+app/
+├── api/                # API endpoints và routes
+├── core/               # Core services và utilities
+│   ├── config.py       # Cấu hình ứng dụng
+│   └── factory.py      # Service factory pattern
+├── models/             # Pydantic models
+│   ├── cost.py         # Models cho cost monitoring
+│   ├── research.py     # Models cho research process
+│   └── ...
+├── services/           # Business logic
+│   ├── core/           # Core services
+│   │   ├── llm/        # LLM services (OpenAI, Claude)
+│   │   ├── monitoring/ # Cost monitoring
+│   │   ├── search/     # Search services
+│   │   └── storage/    # Storage services
+│   └── research/       # Research services
+│       ├── prepare.py  # Phase chuẩn bị
+│       ├── research.py # Phase nghiên cứu
+│       └── edit.py     # Phase chỉnh sửa
+└── utils/              # Utilities
+```
+
+### Các Module Chính
+
+#### 1. API Layer (`app/api/`)
+- `routes.py`: Định nghĩa tất cả các API endpoints
+- `main.py`: Entry point của ứng dụng FastAPI
+
+#### 2. Service Layer (`app/services/`)
+- **Core Services**: Các services cơ bản như LLM, Search, Storage
+  - `llm/`: Tích hợp với các LLM APIs (OpenAI, Claude)
+  - `monitoring/cost.py`: Theo dõi và quản lý chi phí sử dụng APIs
+  - `search/`: Tích hợp với các Search APIs (Perplexity, Google)
+  
+- **Research Services**: Xử lý quy trình nghiên cứu
+  - `prepare.py`: Phân tích yêu cầu và tạo dàn ý
+  - `research.py`: Thực hiện nghiên cứu chi tiết
+  - `edit.py`: Chỉnh sửa và tổng hợp kết quả
+
+#### 3. Models (`app/models/`)
+- `research.py`: Các models cho quy trình nghiên cứu
+- `cost.py`: Các models cho việc theo dõi chi phí
+
 ## Docker
 
-Chạy với Docker:
+### Yêu cầu
+- Docker và Docker Compose đã được cài đặt
+- Python 3.11.10 (phiên bản này được sử dụng trong Dockerfile)
+
+### Cài đặt và chạy với Docker
 ```bash
 # Sao chép file .env.example thành .env và cấu hình
 cp .env.example .env
 
-# Xây dựng và chạy
-docker compose up -d --build
+# Xây dựng image
+docker compose build
+
+# Chạy container
+docker compose up -d
 ```
+
+### Kiểm tra logs
+```bash
+# Xem logs của container
+docker logs deep-research-agent
+
+# Xem logs và theo dõi liên tục
+docker logs -f deep-research-agent
+
+# Lọc logs để tìm lỗi
+docker logs deep-research-agent 2>&1 | grep -i error
+```
+
+### Test API
+```bash
+# Gửi yêu cầu nghiên cứu
+curl -X POST http://localhost:8000/api/v1/research/complete \
+  -H "Content-Type: application/json" \
+  -d '{"query": "Tìm hiểu về ChatGPT là gì?", "max_budget": 1.0}'
+
+# Kiểm tra trạng thái của yêu cầu (thay {research_id} bằng ID thực tế)
+curl http://localhost:8000/api/v1/research/{research_id}/status
+```
+
+### Xử lý sự cố
+- **Khởi động lại container**: Nếu có thay đổi trong code, hãy build lại image và khởi động lại container:
+  ```bash
+  docker compose down
+  docker compose build
+  docker compose up -d
+  ```
 
 API có sẵn tại: http://localhost:8000/api/v1
-
-## Testing
-
-```bash
-pytest tests/ -v
-```
 
 ## License
 
