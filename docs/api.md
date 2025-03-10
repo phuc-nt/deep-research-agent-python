@@ -247,6 +247,10 @@ Các trạng thái có thể:
 - `completed`: Đã hoàn thành
 - `failed`: Thất bại
 
+**Lưu ý về thời gian xử lý:**
+- `time_taken`: Thời gian hoàn thành phase cuối cùng đã xử lý
+- `total_time`: Tổng thời gian từ khi tạo task đến khi hoàn thành (từ `created_at` đến `updated_at`)
+
 ### Lấy thông tin tiến độ chi tiết
 
 ```
@@ -333,13 +337,13 @@ Endpoint này thực hiện việc chỉnh sửa nội dung nghiên cứu cho m�
 
 ```json
 {
-  "task_id": "ca214ee5-6204-4f3d-98c4-4f558e27399b"
+  "research_id": "ca214ee5-6204-4f3d-98c4-4f558e27399b"
 }
 ```
 
 | Tham số | Kiểu | Mô tả |
 |---------|------|-------|
-| task_id | string | ID của research task cần chỉnh sửa (bắt buộc) |
+| research_id | string | ID của research task cần chỉnh sửa (bắt buộc) |
 
 #### Response
 

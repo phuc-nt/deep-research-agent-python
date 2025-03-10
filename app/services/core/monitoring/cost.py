@@ -14,6 +14,7 @@ from app.models.cost import (
     PhaseTimingInfo,
     SectionTimingInfo
 )
+from app.models.research import ResearchCostInfo
 from app.core.logging import get_logger
 from app.services.core.monitoring.custom_pricing import get_custom_pricing
 
@@ -78,7 +79,7 @@ class CostMonitoringService:
         
         return cost_monitoring
     
-    def load_monitoring(self, task_id: str) -> Optional[ResearchCostMonitoring]:
+    async def load_monitoring(self, task_id: str) -> Optional[ResearchCostMonitoring]:
         """Tải dữ liệu monitoring cho một task đã tồn tại"""
         if task_id in self._cost_data:
             return self._cost_data[task_id]
@@ -96,19 +97,8 @@ class CostMonitoringService:
             if hasattr(self.storage_service, 'load_data'):
                 cost_data = self.storage_service.load_data(cost_data_path)
             else:
-                # Sử dụng phương thức load nếu load_data không tồn tại
-                # Chuyển đổi coroutine thành kết quả đồng bộ
-                try:
-                    cost_data = asyncio.run(self.storage_service.load(cost_data_path))
-                except RuntimeError:
-                    # Nếu đã có event loop đang chạy, sử dụng cách khác
-                    loop = asyncio.get_event_loop()
-                    if loop.is_running():
-                        # Tạo task mới và đợi kết quả
-                        future = asyncio.run_coroutine_threadsafe(self.storage_service.load(cost_data_path), loop)
-                        cost_data = future.result(timeout=5)  # Timeout 5 giây
-                    else:
-                        cost_data = loop.run_until_complete(self.storage_service.load(cost_data_path))
+                # Sử dụng phương thức load bất đồng bộ
+                cost_data = await self.storage_service.load(cost_data_path)
             
             if not cost_data:
                 logger.info(f"Không tìm thấy dữ liệu cost monitoring cho task {task_id}, tạo mới")
@@ -116,7 +106,6 @@ class CostMonitoringService:
             
             cost_monitoring = ResearchCostMonitoring.parse_obj(cost_data)
             self._cost_data[task_id] = cost_monitoring
-            logger.info(f"Đã tải cost monitoring cho task {task_id}")
             return cost_monitoring
             
         except Exception as e:
@@ -124,11 +113,18 @@ class CostMonitoringService:
             logger.info(f"Khởi tạo cost monitoring mới cho task {task_id}")
             return self.initialize_monitoring(task_id)
     
-    def get_monitoring(self, task_id: str) -> ResearchCostMonitoring:
+    async def get_monitoring(self, task_id: str) -> ResearchCostMonitoring:
         """Lấy đối tượng monitoring cho một task, tạo mới nếu chưa tồn tại"""
         if task_id in self._cost_data:
             return self._cost_data[task_id]
-        return self.load_monitoring(task_id) or self.initialize_monitoring(task_id)
+            
+        # Thử tải từ storage
+        monitoring = await self.load_monitoring(task_id)
+        if monitoring:
+            return monitoring
+            
+        # Nếu không có, tạo mới
+        return self.initialize_monitoring(task_id)
     
     def update_model_pricing(self, pricing_data: Dict[str, Dict[str, float]]):
         """Cập nhật bảng giá model"""
@@ -766,28 +762,40 @@ class CostMonitoringService:
         
         return summary
         
-    async def get_cost_summary(self, task_id: str) -> CostSummary:
-        """
-        Lấy tổng hợp chi phí cho một task (phiên bản bất đồng bộ)
-        
-        Args:
-            task_id: ID của task
-            
-        Returns:
-            CostSummary: Tổng hợp chi phí
-        """
-        monitoring = self.get_monitoring(task_id)
-        
-        # Cập nhật summary trước khi trả về
-        summary = self._update_summary(monitoring)
-        
-        # Lưu dữ liệu monitoring
+    async def get_cost_summary(self, task_id: str) -> ResearchCostInfo:
+        """Lấy tổng hợp chi phí cho một task"""
         try:
-            await self.save_monitoring_data(task_id)
+            # Lấy hoặc tạo mới monitoring
+            monitoring = await self.load_monitoring(task_id)
+            if not monitoring:
+                monitoring = self.initialize_monitoring(task_id)
+            
+            # Cập nhật summary
+            summary = monitoring.summary
+            if not summary:
+                summary = monitoring._update_summary()
+            
+            # Chuyển đổi sang ResearchCostInfo
+            cost_info = ResearchCostInfo(
+                total_cost_usd=summary.total_cost_usd,
+                llm_cost_usd=summary.llm_cost_usd,
+                search_cost_usd=summary.search_cost_usd,
+                total_tokens=summary.total_tokens,
+                total_requests=summary.total_llm_requests + summary.total_search_requests,
+                model_breakdown=summary.model_breakdown,
+                execution_time_seconds={
+                    timing.phase_name: timing.duration_seconds 
+                    for timing in monitoring.phase_timings 
+                    if timing.duration_seconds is not None
+                }
+            )
+            
+            return cost_info
+            
         except Exception as e:
-            logger.error(f"Lỗi khi lưu dữ liệu monitoring trong get_cost_summary: {str(e)}")
-        
-        return summary
+            logger.error(f"Lỗi khi lấy cost summary cho task {task_id}: {str(e)}")
+            # Trả về ResearchCostInfo mặc định nếu có lỗi
+            return ResearchCostInfo()
 
 # Singleton instance
 cost_service = None
