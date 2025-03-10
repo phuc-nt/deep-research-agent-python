@@ -1,0 +1,281 @@
+{
+  "task_id": "a5f44a2d-346d-4871-aadd-aa5a11b9f261",
+  "llm_requests": [
+    {
+      "timestamp": "2025-03-10T21:29:11.824740",
+      "model": "gpt-4o-mini",
+      "input_tokens": 279,
+      "output_tokens": 123,
+      "cost_usd": 0.00011564999999999999,
+      "prompt": "\n    Phân tích yêu cầu nghiên cứu sau đây:\n    Tác hại của hài nhảm tới kỹ năng tranh luận nghiêm túc\n    \n    Hãy phân tích yêu cầu trên và xác định các thông tin sau:\n    1. Chủ đề (Topic): Chủ đề chính của nghiên cứu\n    2. Phạm vi (Scope): Phạm vi và giới hạn của nghiên cứu\n    3. Đối tượng độc giả (Target Audience): Nhóm đối tượng mục tiêu của nghiên cứu\n    \n    ĐỊNH DẠNG PHẢN HỒI:\n    1. Phản hồi của bạn PHẢI là một đối tượng JSON hợp lệ, không có bất kỳ văn bản nào khác.\n    2. KHÔNG bao",
+      "duration_ms": 5475,
+      "endpoint": "OpenAIService",
+      "request_id": "1741616951.824786",
+      "purpose": "analyze_query"
+    },
+    {
+      "timestamp": "2025-03-10T21:29:22.867055",
+      "model": "gpt-4o-mini",
+      "input_tokens": 1188,
+      "output_tokens": 408,
+      "cost_usd": 0.000423,
+      "prompt": "\n    Tạo dàn ý cho yêu cầu nghiên cứu sau đây:\n    \n    Chủ đề: Tác hại của hài nhảm tới kỹ năng tranh luận nghiêm túc\n    Phạm vi: Nghiên cứu ảnh hưởng của hài nhảm đối với khả năng tranh luận nghiêm túc, tập trung vào các khía cạnh như sự suy giảm khả năng tư duy phản biện, sự thiếu hụt trong việc xây dựng lập luận và ảnh hưởng đến cách tiếp nhận thông tin.\n    Đối tượng độc giả: Sinh viên, nhà nghiên cứu và các chuyên gia trong lĩnh vực truyền thông, tâm lý học và giáo dục.\n    \n    Dưới đây ",
+      "duration_ms": 6045,
+      "endpoint": "OpenAIService",
+      "request_id": "1741616962.867079",
+      "purpose": "create_outline"
+    },
+    {
+      "timestamp": "2025-03-10T21:29:41.931682",
+      "model": "gpt-4o-mini",
+      "input_tokens": 1104,
+      "output_tokens": 699,
+      "cost_usd": 0.0005849999999999999,
+      "prompt": "\n    Phân tích và tổng hợp thông tin cho phần sau trong bài nghiên cứu:\n    \n    Chủ đề: Tác hại của hài nhảm tới kỹ năng tranh luận nghiêm túc\n    Phạm vi: Nghiên cứu ảnh hưởng của hài nhảm đối với khả năng tranh luận nghiêm túc, tập trung vào các khía cạnh như sự suy giảm khả năng tư duy phản biện, sự thiếu hụt trong việc xây dựng lập luận và ảnh hưởng đến cách tiếp nhận thông tin.\n    Đối tượng đọc: Sinh viên, nhà nghiên cứu và các chuyên gia trong lĩnh vực truyền thông, tâm lý học và giáo dụ",
+      "duration_ms": 13256,
+      "endpoint": "OpenAIService",
+      "request_id": "1741616981.9317",
+      "purpose": "research_section_Tác động của hài nhảm đến kỹ năng tư duy phản biện"
+    },
+    {
+      "timestamp": "2025-03-10T21:29:53.315042",
+      "model": "gpt-4o-mini",
+      "input_tokens": 917,
+      "output_tokens": 635,
+      "cost_usd": 0.00051855,
+      "prompt": "\n    Phân tích và tổng hợp thông tin cho phần sau trong bài nghiên cứu:\n    \n    Chủ đề: Tác hại của hài nhảm tới kỹ năng tranh luận nghiêm túc\n    Phạm vi: Nghiên cứu ảnh hưởng của hài nhảm đối với khả năng tranh luận nghiêm túc, tập trung vào các khía cạnh như sự suy giảm khả năng tư duy phản biện, sự thiếu hụt trong việc xây dựng lập luận và ảnh hưởng đến cách tiếp nhận thông tin.\n    Đối tượng đọc: Sinh viên, nhà nghiên cứu và các chuyên gia trong lĩnh vực truyền thông, tâm lý học và giáo dụ",
+      "duration_ms": 6451,
+      "endpoint": "OpenAIService",
+      "request_id": "1741616993.31507",
+      "purpose": "research_section_Hài nhảm và sự thiếu hụt trong việc xây dựng lập luận"
+    },
+    {
+      "timestamp": "2025-03-10T21:30:09.724443",
+      "model": "gpt-4o-mini",
+      "input_tokens": 848,
+      "output_tokens": 641,
+      "cost_usd": 0.0005118,
+      "prompt": "\n    Phân tích và tổng hợp thông tin cho phần sau trong bài nghiên cứu:\n    \n    Chủ đề: Tác hại của hài nhảm tới kỹ năng tranh luận nghiêm túc\n    Phạm vi: Nghiên cứu ảnh hưởng của hài nhảm đối với khả năng tranh luận nghiêm túc, tập trung vào các khía cạnh như sự suy giảm khả năng tư duy phản biện, sự thiếu hụt trong việc xây dựng lập luận và ảnh hưởng đến cách tiếp nhận thông tin.\n    Đối tượng đọc: Sinh viên, nhà nghiên cứu và các chuyên gia trong lĩnh vực truyền thông, tâm lý học và giáo dụ",
+      "duration_ms": 9951,
+      "endpoint": "OpenAIService",
+      "request_id": "1741617009.724465",
+      "purpose": "research_section_Ảnh hưởng của hài nhảm đến cách tiếp nhận thông tin"
+    },
+    {
+      "timestamp": "2025-03-10T21:30:28.508243",
+      "model": "gpt-4o-mini",
+      "input_tokens": 873,
+      "output_tokens": 688,
+      "cost_usd": 0.00054375,
+      "prompt": "\n    Phân tích và tổng hợp thông tin cho phần sau trong bài nghiên cứu:\n    \n    Chủ đề: Tác hại của hài nhảm tới kỹ năng tranh luận nghiêm túc\n    Phạm vi: Nghiên cứu ảnh hưởng của hài nhảm đối với khả năng tranh luận nghiêm túc, tập trung vào các khía cạnh như sự suy giảm khả năng tư duy phản biện, sự thiếu hụt trong việc xây dựng lập luận và ảnh hưởng đến cách tiếp nhận thông tin.\n    Đối tượng đọc: Sinh viên, nhà nghiên cứu và các chuyên gia trong lĩnh vực truyền thông, tâm lý học và giáo dụ",
+      "duration_ms": 12859,
+      "endpoint": "OpenAIService",
+      "request_id": "1741617028.508269",
+      "purpose": "research_section_So sánh giữa hài nhảm và các thể loại giải trí khác"
+    },
+    {
+      "timestamp": "2025-03-10T21:30:57.530477",
+      "model": "gpt-4o-mini",
+      "input_tokens": 838,
+      "output_tokens": 696,
+      "cost_usd": 0.0005432999999999999,
+      "prompt": "\n    Phân tích và tổng hợp thông tin cho phần sau trong bài nghiên cứu:\n    \n    Chủ đề: Tác hại của hài nhảm tới kỹ năng tranh luận nghiêm túc\n    Phạm vi: Nghiên cứu ảnh hưởng của hài nhảm đối với khả năng tranh luận nghiêm túc, tập trung vào các khía cạnh như sự suy giảm khả năng tư duy phản biện, sự thiếu hụt trong việc xây dựng lập luận và ảnh hưởng đến cách tiếp nhận thông tin.\n    Đối tượng đọc: Sinh viên, nhà nghiên cứu và các chuyên gia trong lĩnh vực truyền thông, tâm lý học và giáo dụ",
+      "duration_ms": 22043,
+      "endpoint": "OpenAIService",
+      "request_id": "1741617057.530496",
+      "purpose": "research_section_Giải pháp nâng cao kỹ năng tranh luận trong bối cảnh hài nhảm"
+    },
+    {
+      "timestamp": "2025-03-10T21:31:56.950948",
+      "model": "gpt-4o-mini",
+      "input_tokens": 3765,
+      "output_tokens": 4000,
+      "cost_usd": 0.0029647499999999995,
+      "prompt": "\n    Chỉnh sửa và hoàn thiện bài nghiên cứu sau:\n    \n    Chủ đề: Tác hại của hài nhảm tới kỹ năng tranh luận nghiêm túc\n    Phạm vi: Nghiên cứu ảnh hưởng của hài nhảm đối với khả năng tranh luận nghiêm túc, tập trung vào các khía cạnh như sự suy giảm khả năng tư duy phản biện, sự thiếu hụt trong việc xây dựng lập luận và ảnh hưởng đến cách tiếp nhận thông tin.\n    Đối tượng đọc: Sinh viên, nhà nghiên cứu và các chuyên gia trong lĩnh vực truyền thông, tâm lý học và giáo dục.\n    \n    Nội dung bà",
+      "duration_ms": 59408,
+      "endpoint": "OpenAIService",
+      "request_id": "1741617116.950982",
+      "purpose": "edit_content"
+    },
+    {
+      "timestamp": "2025-03-10T21:31:57.782704",
+      "model": "gpt-4o-mini",
+      "input_tokens": 782,
+      "output_tokens": 19,
+      "cost_usd": 0.00012869999999999998,
+      "prompt": "\n    Tạo tiêu đề cho bài nghiên cứu sau:\n    \n    Chủ đề: Tác hại của hài nhảm tới kỹ năng tranh luận nghiêm túc\n    Phạm vi: Nghiên cứu ảnh hưởng của hài nhảm đối với khả năng tranh luận nghiêm túc, tập trung vào các khía cạnh như sự suy giảm khả năng tư duy phản biện, sự thiếu hụt trong việc xây dựng lập luận và ảnh hưởng đến cách tiếp nhận thông tin.\n    Đối tượng đọc: Sinh viên, nhà nghiên cứu và các chuyên gia trong lĩnh vực truyền thông, tâm lý học và giáo dục.\n    \n    Nội dung bài nghiên",
+      "duration_ms": 828,
+      "endpoint": "OpenAIService",
+      "request_id": "1741617117.782725",
+      "purpose": "create_title"
+    }
+  ],
+  "search_requests": [
+    {
+      "timestamp": "2025-03-10T21:29:16.819406",
+      "provider": "perplexity",
+      "query": "Tác hại của hài nhảm tới kỹ năng tranh luận nghiêm túc Nghiên cứu ảnh hưởng của hài nhảm đối với khả năng tranh luận nghiêm túc, tập trung vào các khía cạnh như sự suy giảm khả năng tư duy phản biện, sự thiếu hụt trong việc xây dựng lập luận và ảnh hưởng đến cách tiếp nhận thông tin.",
+      "cost_usd": 0.00011160000000000002,
+      "duration_ms": 3814,
+      "num_results": 5,
+      "request_id": "1741616956.819455",
+      "purpose": "search_for_outline_retry",
+      "input_tokens": 92,
+      "output_tokens": 466
+    },
+    {
+      "timestamp": "2025-03-10T21:29:28.672822",
+      "provider": "perplexity",
+      "query": "Tác hại của hài nhảm tới kỹ năng tranh luận nghiêm túc Tác động của hài nhảm đến kỹ năng tư duy phản biện Phân tích cách mà hài nhảm làm suy giảm khả năng tư duy phản biện của sinh viên, bao gồm các yếu tố như sự dễ dãi trong việc tiếp nhận thông tin và sự thiếu hụt trong việc phân tích và đánh giá lập luận.",
+      "cost_usd": 0.00013040000000000003,
+      "duration_ms": 4641,
+      "num_results": 5,
+      "request_id": "1741616968.672844",
+      "purpose": "search_section_Tác động của hài nhảm đến kỹ năng tư duy phản biện",
+      "input_tokens": 101,
+      "output_tokens": 551
+    },
+    {
+      "timestamp": "2025-03-10T21:29:46.861206",
+      "provider": "perplexity",
+      "query": "Tác hại của hài nhảm tới kỹ năng tranh luận nghiêm túc Hài nhảm và sự thiếu hụt trong việc xây dựng lập luận Khảo sát mối liên hệ giữa việc tiêu thụ hài nhảm và khả năng xây dựng lập luận chặt chẽ. Đề cập đến các cơ chế mà hài nhảm có thể khiến người xem không còn quan tâm đến việc lập luận hợp lý.",
+      "cost_usd": 0.000137,
+      "duration_ms": 4925,
+      "num_results": 5,
+      "request_id": "1741616986.86124",
+      "purpose": "search_section_Hài nhảm và sự thiếu hụt trong việc xây dựng lập luận",
+      "input_tokens": 105,
+      "output_tokens": 580
+    },
+    {
+      "timestamp": "2025-03-10T21:29:59.770523",
+      "provider": "perplexity",
+      "query": "Tác hại của hài nhảm tới kỹ năng tranh luận nghiêm túc Ảnh hưởng của hài nhảm đến cách tiếp nhận thông tin Nghiên cứu cách mà hài nhảm thay đổi cách mà sinh viên tiếp nhận và xử lý thông tin, dẫn đến việc dễ dàng chấp nhận thông tin sai lệch và thiếu nghiêm túc trong các cuộc tranh luận.",
+      "cost_usd": 0.00020260000000000002,
+      "duration_ms": 6447,
+      "num_results": 5,
+      "request_id": "1741616999.770555",
+      "purpose": "search_section_Ảnh hưởng của hài nhảm đến cách tiếp nhận thông tin",
+      "input_tokens": 91,
+      "output_tokens": 922
+    },
+    {
+      "timestamp": "2025-03-10T21:30:15.644822",
+      "provider": "perplexity",
+      "query": "Tác hại của hài nhảm tới kỹ năng tranh luận nghiêm túc So sánh giữa hài nhảm và các thể loại giải trí khác Đánh giá sự khác biệt trong tác động của hài nhảm so với các thể loại giải trí khác (như phim tài liệu, chương trình chính luận) đến kỹ năng tranh luận và tư duy phản biện.",
+      "cost_usd": 0.0001666,
+      "duration_ms": 5911,
+      "num_results": 5,
+      "request_id": "1741617015.644848",
+      "purpose": "search_section_So sánh giữa hài nhảm và các thể loại giải trí khác",
+      "input_tokens": 90,
+      "output_tokens": 743
+    },
+    {
+      "timestamp": "2025-03-10T21:30:35.484164",
+      "provider": "perplexity",
+      "query": "Tác hại của hài nhảm tới kỹ năng tranh luận nghiêm túc Giải pháp nâng cao kỹ năng tranh luận trong bối cảnh hài nhảm Đề xuất các phương pháp và chương trình giáo dục nhằm cải thiện kỹ năng tranh luận và tư duy phản biện cho sinh viên, bất chấp sự thịnh hành của hài nhảm.",
+      "cost_usd": 0.00020300000000000003,
+      "duration_ms": 6970,
+      "num_results": 5,
+      "request_id": "1741617035.48419",
+      "purpose": "search_section_Giải pháp nâng cao kỹ năng tranh luận trong bối cảnh hài nhảm",
+      "input_tokens": 83,
+      "output_tokens": 932
+    }
+  ],
+  "phase_timings": [
+    {
+      "phase_name": "researching",
+      "start_time": "2025-03-10T21:29:24.029656",
+      "end_time": "2025-03-10T21:30:57.534281",
+      "duration_seconds": 93.504627,
+      "status": "completed"
+    },
+    {
+      "phase_name": "editing",
+      "start_time": "2025-03-10T21:30:57.541236",
+      "end_time": "2025-03-10T21:31:57.785368",
+      "duration_seconds": 60.244136,
+      "status": "completed"
+    },
+    {
+      "phase_name": "completed",
+      "start_time": "2025-03-10T21:31:57.786393",
+      "end_time": "2025-03-10T21:31:57.787272",
+      "duration_seconds": 0.000882,
+      "status": "completed"
+    }
+  ],
+  "section_timings": [
+    {
+      "section_id": "section_1",
+      "section_title": "Tác động của hài nhảm đến kỹ năng tư duy phản biện",
+      "start_time": "2025-03-10T21:29:24.030646",
+      "end_time": "2025-03-10T21:29:41.933207",
+      "duration_seconds": 17.902564,
+      "status": "completed"
+    },
+    {
+      "section_id": "section_2",
+      "section_title": "Hài nhảm và sự thiếu hụt trong việc xây dựng lập luận",
+      "start_time": "2025-03-10T21:29:41.934601",
+      "end_time": "2025-03-10T21:29:53.317753",
+      "duration_seconds": 11.383156,
+      "status": "completed"
+    },
+    {
+      "section_id": "section_3",
+      "section_title": "Ảnh hưởng của hài nhảm đến cách tiếp nhận thông tin",
+      "start_time": "2025-03-10T21:29:53.320520",
+      "end_time": "2025-03-10T21:30:09.726818",
+      "duration_seconds": 16.406302,
+      "status": "completed"
+    },
+    {
+      "section_id": "section_4",
+      "section_title": "So sánh giữa hài nhảm và các thể loại giải trí khác",
+      "start_time": "2025-03-10T21:30:09.730348",
+      "end_time": "2025-03-10T21:30:28.510556",
+      "duration_seconds": 18.780212,
+      "status": "completed"
+    },
+    {
+      "section_id": "section_5",
+      "section_title": "Giải pháp nâng cao kỹ năng tranh luận trong bối cảnh hài nhảm",
+      "start_time": "2025-03-10T21:30:28.512808",
+      "end_time": "2025-03-10T21:30:57.533140",
+      "duration_seconds": 29.020336,
+      "status": "completed"
+    }
+  ],
+  "created_at": "2025-03-10T21:29:11.820393",
+  "updated_at": "2025-03-10T21:31:57.787272",
+  "summary": {
+    "total_cost_usd": 0.007285699999999999,
+    "llm_cost_usd": 0.006334499999999999,
+    "search_cost_usd": 0.0009512000000000001,
+    "total_tokens": 23259,
+    "total_input_tokens": 11156,
+    "total_output_tokens": 12103,
+    "total_llm_requests": 9,
+    "total_search_requests": 6,
+    "model_breakdown": {
+      "gpt-4o-mini": {
+        "cost_usd": 0.006334499999999999,
+        "requests": 9,
+        "input_tokens": 10594,
+        "output_tokens": 7909
+      }
+    },
+    "provider_breakdown": {
+      "perplexity": {
+        "cost_usd": 0.0009512000000000001,
+        "requests": 6,
+        "input_tokens": 562,
+        "output_tokens": 4194
+      }
+    },
+    "last_updated": "2025-03-10T21:32:02.034493"
+  }
+}

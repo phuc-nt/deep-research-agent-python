@@ -16,9 +16,10 @@ from app.models.research import (
     ResearchSection,
     ResearchResult,
     ResearchError,
-    ResearchCostInfo
+    ResearchCostInfo,
+    EditRequest
 )
-from app.models.cost import PhaseTimingInfo
+from app.models.cost import PhaseTimingInfo, ResearchCostMonitoring
 from app.services.research.prepare import PrepareService
 from app.services.research.research import ResearchService
 from app.services.research.edit import EditService
@@ -65,7 +66,6 @@ async def process_research(task_id: str, request: ResearchRequest):
         # Khởi tạo các services
         prepare_service = PrepareService()
         research_service = ResearchService()
-        edit_service = EditService()
         
         # Thiết lập callback để cập nhật tiến độ
         async def update_progress_callback(progress_info: Dict[str, Any]):
@@ -76,6 +76,9 @@ async def process_research(task_id: str, request: ResearchRequest):
         
         # Gán callback cho research_service
         research_service.update_progress_callback = update_progress_callback
+        
+        # Gán task_id vào request để các service có thể sử dụng
+        request.task_id = task_id
         
         # Phase 1: Chuẩn bị
         logger.info(f"[Task {task_id}] === BẮT ĐẦU PHASE CHUẨN BỊ ===")
@@ -89,7 +92,7 @@ async def process_research(task_id: str, request: ResearchRequest):
         await research_storage_service.save_task(research_tasks[task_id])
         
         start_time = time.time()
-        analysis = await prepare_service.analyze_query(request.query)
+        analysis = await prepare_service.analyze_query(request.query, task_id)
         end_time = time.time()
         
         # Chuẩn hóa kết quả phân tích (kiểm tra cả viết hoa và viết thường)
@@ -132,7 +135,7 @@ async def process_research(task_id: str, request: ResearchRequest):
         await research_storage_service.save_task(research_tasks[task_id])
         
         start_time = time.time()
-        outline = await prepare_service.create_outline(request)
+        outline = await prepare_service.create_outline(request, task_id)
         end_time = time.time()
         
         logger.info(f"[Task {task_id}] Tạo dàn ý hoàn thành trong {end_time - start_time:.2f} giây")
@@ -165,6 +168,8 @@ async def process_research(task_id: str, request: ResearchRequest):
         await research_storage_service.save_task(research_tasks[task_id])
         
         start_time = time.time()
+        # Đảm bảo outline có task_id
+        outline.task_id = task_id
         researched_sections = await research_service.execute(request, outline)
         end_time = time.time()
         
@@ -173,6 +178,7 @@ async def process_research(task_id: str, request: ResearchRequest):
         
         # Lưu researched_sections vào task
         research_tasks[task_id].sections = researched_sections
+        research_tasks[task_id].updated_at = datetime.utcnow()
         research_tasks[task_id].progress_info = {
             "phase": "researched",
             "message": "Đã hoàn thành nghiên cứu tất cả các phần",
@@ -184,56 +190,17 @@ async def process_research(task_id: str, request: ResearchRequest):
         await research_storage_service.save_sections(task_id, researched_sections)
         await research_storage_service.save_task(research_tasks[task_id])
         
-        # Phase 3: Chỉnh sửa
-        logger.info(f"[Task {task_id}] === BẮT ĐẦU PHASE CHỈNH SỬA ===")
-        research_tasks[task_id].status = ResearchStatus.EDITING
-        research_tasks[task_id].updated_at = datetime.utcnow()
-        research_tasks[task_id].progress_info = {"phase": "editing"}
-        await research_storage_service.save_task(research_tasks[task_id])
-        
-        start_time = time.time()
-        result = await edit_service.execute(request, outline, researched_sections)
-        end_time = time.time()
-        
-        logger.info(f"[Task {task_id}] Phase chỉnh sửa hoàn thành trong {end_time - start_time:.2f} giây")
-        logger.info(f"[Task {task_id}] Kết quả: Tiêu đề: '{result.title}', Độ dài nội dung: {len(result.content)} ký tự, Số nguồn: {len(result.sources)}")
-        
-        # Lưu kết quả vào file
-        await research_storage_service.save_result(task_id, result)
-        
-        # Lưu kết quả lên GitHub
-        logger.info(f"[Task {task_id}] === BẮT ĐẦU LƯU KẾT QUẢ LÊN GITHUB ===")
-        
-        # Tạo nội dung Markdown
-        markdown_content = f"# {result.title}\n\n{result.content}\n\n## Nguồn tham khảo\n\n"
-        for idx, source in enumerate(result.sources):
-            markdown_content += f"{idx+1}. [{source}]({source})\n"
-        
-        logger.info(f"[Task {task_id}] Đã tạo nội dung Markdown với {len(markdown_content)} ký tự")
-        
-        # Lưu lên GitHub
-        try:
-            github_service = get_service_factory().create_storage_service("github")
-            file_path = f"researches/{task_id}/result.md"
-            logger.info(f"[Task {task_id}] Đường dẫn file: {file_path}")
-            
-            start_time = time.time()
-            github_url = await github_service.save(markdown_content, file_path)
-            end_time = time.time()
-            
-            logger.info(f"[Task {task_id}] Đã lưu kết quả lên GitHub trong {end_time - start_time:.2f} giây")
-            logger.info(f"[Task {task_id}] URL GitHub: {github_url}")
-            
-            # Cập nhật URL GitHub vào task
-            research_tasks[task_id].github_url = github_url
-        except Exception as e:
-            logger.error(f"[Task {task_id}] Lỗi khi lưu kết quả lên GitHub: {str(e)}")
-        
-        # Cập nhật trạng thái task
+        # Cập nhật trạng thái task thành completed
         research_tasks[task_id].status = ResearchStatus.COMPLETED
-        research_tasks[task_id].result = result
         research_tasks[task_id].updated_at = datetime.utcnow()
-        research_tasks[task_id].progress_info = {"phase": "completed"}
+        research_tasks[task_id].progress_info = {
+            "phase": "completed",
+            "message": "Đã hoàn thành nghiên cứu, sẵn sàng cho giai đoạn chỉnh sửa",
+            "timestamp": datetime.utcnow().isoformat(),
+            "sections_count": len(researched_sections),
+            "outline_sections_count": len(outline.sections),
+            "total_time": f"{(datetime.utcnow() - research_tasks[task_id].created_at).total_seconds():.2f} giây"
+        }
         await research_storage_service.save_task(research_tasks[task_id])
         
         logger.info(f"[Task {task_id}] === HOÀN THÀNH RESEARCH TASK ===")
@@ -249,6 +216,12 @@ async def process_research(task_id: str, request: ResearchRequest):
                 details={"error": str(e)}
             )
             research_tasks[task_id].updated_at = datetime.utcnow()
+            research_tasks[task_id].progress_info = {
+                "phase": "failed",
+                "message": f"Lỗi trong quá trình xử lý: {str(e)}",
+                "timestamp": datetime.utcnow().isoformat(),
+                "error": str(e)
+            }
             await research_storage_service.save_task(research_tasks[task_id])
 
 @router.post("/research", response_model=ResearchResponse)
@@ -258,6 +231,52 @@ async def create_research(
 ) -> ResearchResponse:
     """
     Tạo một yêu cầu nghiên cứu mới
+    
+    Endpoint này khởi tạo một yêu cầu nghiên cứu mới và thực hiện các bước phân tích, tạo dàn ý và nghiên cứu. 
+    **Lưu ý**: Sau khi nghiên cứu hoàn thành, bạn cần gọi thêm endpoint `/api/v1/research/edit_only` để chỉnh sửa và hoàn thiện nội dung.
+    
+    Args:
+        request: Thông tin yêu cầu nghiên cứu
+        background_tasks: Background tasks để xử lý nghiên cứu
+        
+    Returns:
+        ResearchResponse: Thông tin về research task đã tạo
+        
+    Examples:
+        ```json
+        # Request
+        {
+          "query": "Nghiên cứu về trí tuệ nhân tạo và ứng dụng trong giáo dục",
+          "topic": "Trí tuệ nhân tạo trong giáo dục",
+          "scope": "Tổng quan và ứng dụng thực tế",
+          "target_audience": "Giáo viên và nhà quản lý giáo dục"
+        }
+        
+        # Response
+        {
+          "id": "ca214ee5-6204-4f3d-98c4-4f558e27399b",
+          "status": "pending",
+          "request": {
+            "query": "Nghiên cứu về trí tuệ nhân tạo và ứng dụng trong giáo dục",
+            "topic": "Trí tuệ nhân tạo trong giáo dục",
+            "scope": "Tổng quan và ứng dụng thực tế",
+            "target_audience": "Giáo viên và nhà quản lý giáo dục"
+          },
+          "outline": null,
+          "result": null,
+          "error": null,
+          "github_url": null,
+          "progress_info": {
+            "phase": "pending",
+            "message": "Đã nhận yêu cầu nghiên cứu, đang chuẩn bị xử lý",
+            "timestamp": "2023-03-11T10:15:30.123456"
+          },
+          "created_at": "2023-03-11T10:15:30.123456",
+          "updated_at": "2023-03-11T10:15:30.123456"
+        }
+        ```
+        
+        > **Lưu ý**: Khi chỉ cung cấp `query`, hệ thống sẽ tự động phân tích để xác định `topic`, `scope` và `target_audience`.
     """
     try:
         logger.info(f"Nhận yêu cầu nghiên cứu mới: {request.topic or request.query}")
@@ -274,7 +293,7 @@ async def create_research(
             updated_at=datetime.utcnow(),
             progress_info={
                 "phase": "pending",
-                "message": "Đã nhận yêu cầu nghiên cứu và đang chuẩn bị xử lý",
+                "message": "Đã nhận yêu cầu nghiên cứu, đang chuẩn bị xử lý",
                 "timestamp": datetime.utcnow().isoformat()
             }
         )
@@ -285,7 +304,7 @@ async def create_research(
         logger.info(f"Đã tạo research task {task_id}")
         
         # Chạy quá trình nghiên cứu trong background
-        asyncio.create_task(process_research(task_id, request))
+        background_tasks.add_task(process_research, task_id, request)
         
         return research_tasks[task_id]
         
@@ -296,58 +315,115 @@ async def create_research(
             detail=f"Lỗi khi tạo research task: {str(e)}"
         )
 
-@router.get("/research/{task_id}", response_model=ResearchResponse)
-async def get_research(task_id: str) -> ResearchResponse:
+@router.get("/research/{research_id}", response_model=ResearchResponse)
+async def get_research(research_id: str) -> ResearchResponse:
     """
     Lấy thông tin đầy đủ về một research task
+    
+    Endpoint này trả về toàn bộ thông tin của một research task bao gồm yêu cầu gốc,
+    dàn ý, nội dung đã nghiên cứu, kết quả hoàn chỉnh (nếu có), và các thông tin khác.
+    
+    Args:
+        research_id: ID của research task
+    
+    Returns:
+        ResearchResponse: Thông tin đầy đủ của research task
+        
+    Raises:
+        HTTPException: Nếu không tìm thấy research task
+        
+    Examples:
+        ```
+        {
+          "id": "ca214ee5-6204-4f3d-98c4-4f558e27399b",
+          "status": "completed",
+          "request": {
+            "query": "Nghiên cứu về trí tuệ nhân tạo và ứng dụng trong giáo dục",
+            "topic": "Trí tuệ nhân tạo trong giáo dục",
+            "scope": "Tổng quan và ứng dụng thực tế",
+            "target_audience": "Giáo viên và nhà quản lý giáo dục"
+          },
+          "outline": {
+            "sections": [
+              {
+                "title": "Giới thiệu về trí tuệ nhân tạo trong giáo dục",
+                "description": "Tổng quan về AI và vai trò trong lĩnh vực giáo dục",
+                "content": "..."
+              }
+            ]
+          },
+          "result": {
+            "title": "Trí tuệ nhân tạo trong giáo dục: Hiện tại và tương lai",
+            "content": "...",
+            "sections": [],
+            "sources": [
+              "https://example.com/source1",
+              "https://example.com/source2"
+            ]
+          },
+          "error": null,
+          "github_url": "https://github.com/username/repo/research-123",
+          "progress_info": {
+            "phase": "completed",
+            "message": "Đã hoàn thành toàn bộ quá trình nghiên cứu",
+            "timestamp": "2023-03-11T10:20:45.678901",
+            "time_taken": "302.5 giây",
+            "content_length": 12405,
+            "sources_count": 15,
+            "total_time": "305.3 giây"
+          },
+          "created_at": "2023-03-11T10:15:30.123456",
+          "updated_at": "2023-03-11T10:20:45.678901"
+        }
+        ```
     """
     try:
-        logger.info(f"Lấy thông tin đầy đủ research task {task_id}")
+        logger.info(f"Lấy thông tin đầy đủ research task {research_id}")
         
         # Kiểm tra trong bộ nhớ
-        if task_id not in research_tasks:
+        if research_id not in research_tasks:
             # Thử tải từ file
-            logger.info(f"Task {task_id} không có trong bộ nhớ, thử tải từ file...")
-            task = await research_storage_service.load_full_task(task_id)
+            logger.info(f"Task {research_id} không có trong bộ nhớ, thử tải từ file...")
+            task = await research_storage_service.load_full_task(research_id)
             
             if task:
                 # Cập nhật vào bộ nhớ
-                research_tasks[task_id] = task
-                logger.info(f"Đã tải đầy đủ task {task_id} từ file, trạng thái: {task.status}")
+                research_tasks[research_id] = task
+                logger.info(f"Đã tải đầy đủ task {research_id} từ file, trạng thái: {task.status}")
             else:
-                logger.error(f"Không tìm thấy research task {task_id}")
+                logger.error(f"Không tìm thấy research task {research_id}")
                 raise HTTPException(
                     status_code=404,
-                    detail=f"Research task {task_id} not found"
+                    detail=f"Research task {research_id} not found"
                 )
         else:
             # Nếu task đã có trong bộ nhớ nhưng chưa có đầy đủ thông tin
-            task = research_tasks[task_id]
+            task = research_tasks[research_id]
             
             # Tải outline nếu chưa có
             if not task.outline:
-                outline = await research_storage_service.load_outline(task_id)
+                outline = await research_storage_service.load_outline(research_id)
                 if outline:
                     task.outline = outline
             
             # Tải sections nếu chưa có
             if not task.sections and task.status in [ResearchStatus.EDITING, ResearchStatus.COMPLETED]:
-                sections = await research_storage_service.load_sections(task_id)
+                sections = await research_storage_service.load_sections(research_id)
                 if sections:
                     task.sections = sections
             
             # Tải result nếu chưa có
             if not task.result and task.status == ResearchStatus.COMPLETED:
-                result = await research_storage_service.load_result(task_id)
+                result = await research_storage_service.load_result(research_id)
                 if result:
                     task.result = result
             
-        return research_tasks[task_id]
+        return research_tasks[research_id]
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Lỗi khi lấy thông tin research task {task_id}: {str(e)}")
+        logger.error(f"Lỗi khi lấy thông tin research task {research_id}: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=str(e)
@@ -529,78 +605,57 @@ async def list_research() -> List[Dict[str, Any]]:
         )
 
 @router.post("/research/edit_only", response_model=ResearchResponse)
-async def continue_with_editing() -> ResearchResponse:
+async def continue_with_editing(
+    request: EditRequest,
+    background_tasks: BackgroundTasks
+) -> ResearchResponse:
     """
-    Tiếp tục xử lý giai đoạn chỉnh sửa cho task mới nhất, sử dụng dữ liệu có sẵn
+    Tiếp tục xử lý giai đoạn chỉnh sửa cho task được chỉ định
+    
+    Args:
+        request (EditRequest): Request chứa research_id cần chỉnh sửa
+        background_tasks: Background tasks để xử lý chỉnh sửa
     
     Returns:
         ResearchResponse: Thông tin về research task đã cập nhật
     """
     try:
-        # Tìm task mới nhất
-        task_ids = await research_storage_service.list_tasks()
-        
-        if not task_ids:
-            # Nếu không có task nào, báo lỗi
-            logger.error("Không tìm thấy task nào để tiếp tục xử lý")
-            raise HTTPException(
-                status_code=404,
-                detail="Không tìm thấy task nào để tiếp tục xử lý"
-            )
-        
-        # Sắp xếp task theo thời gian tạo (nếu có thông tin)
-        tasks = []
-        for tid in task_ids:
-            task = await research_storage_service.load_task(tid)
-            if task:
-                tasks.append(task)
-        
-        if not tasks:
-            # Nếu không load được task nào, báo lỗi
-            logger.error("Không load được task nào để tiếp tục xử lý")
-            raise HTTPException(
-                status_code=404,
-                detail="Không load được task nào để tiếp tục xử lý"
-            )
-        
-        # Sắp xếp theo thời gian tạo, lấy task mới nhất
-        tasks.sort(key=lambda x: x.created_at if x.created_at else datetime.min, reverse=True)
-        task_id = tasks[0].id
+        research_id = request.research_id
         
         # Tải task đầy đủ
-        task = await research_storage_service.load_full_task(task_id)
+        task = await research_storage_service.load_full_task(research_id)
         if not task:
-            logger.error(f"Không thể tải đầy đủ thông tin task {task_id}")
+            logger.error(f"Không thể tải đầy đủ thông tin task {research_id}")
             raise HTTPException(
                 status_code=404,
-                detail=f"Không thể tải đầy đủ thông tin task {task_id}"
+                detail=f"Không thể tải đầy đủ thông tin task {research_id}"
             )
         
-        logger.info(f"Tìm thấy task mới nhất với ID: {task_id}")
+        logger.info(f"Tìm thấy task với ID: {research_id}")
         
         # Kiểm tra xem task có đủ dữ liệu để tiếp tục không
         if not task.request:
-            logger.error(f"Task {task_id} không có thông tin request")
+            logger.error(f"Task {research_id} không có thông tin request")
             raise HTTPException(
                 status_code=400,
-                detail=f"Task {task_id} không có thông tin request"
+                detail=f"Task {research_id} không có thông tin request"
             )
         
         # Tải outline và sections từ file
         outline = task.outline
         if not outline:
-            logger.error(f"Task {task_id} không có outline")
+            logger.error(f"Task {research_id} không có outline")
             raise HTTPException(
                 status_code=400,
-                detail=f"Task {task_id} không có outline"
+                detail=f"Task {research_id} không có outline"
             )
         
         sections = task.sections
         if not sections:
-            logger.error(f"Task {task_id} không có sections")
+            logger.error(f"Task {research_id} không có sections")
             raise HTTPException(
                 status_code=400,
-                detail=f"Task {task_id} không có sections"
+                detail=f"Task {research_id} không có sections"
             )
         
         # Cập nhật trạng thái task và thông tin tiến độ
@@ -615,15 +670,15 @@ async def continue_with_editing() -> ResearchResponse:
         }
         
         # Lưu task vào bộ nhớ và file
-        research_tasks[task_id] = task
+        research_tasks[research_id] = task
         await research_storage_service.save_task(task)
         
-        logger.info(f"Đã cập nhật task {task_id} để tiếp tục xử lý giai đoạn chỉnh sửa")
+        logger.info(f"Đã cập nhật task {research_id} để tiếp tục xử lý giai đoạn chỉnh sửa")
         logger.info(f"Thông tin yêu cầu: Query: '{task.request.query}', Topic: '{task.request.topic}', Scope: '{task.request.scope}', Target Audience: '{task.request.target_audience}'")
         logger.info(f"Số phần đã nghiên cứu: {len(sections)}")
         
         # Chạy quá trình chỉnh sửa trong background
-        asyncio.create_task(process_research_with_sections(task_id, task.request, outline, sections))
+        background_tasks.add_task(process_research_with_sections, research_id, task.request, outline, sections)
         
         return task
         
@@ -658,7 +713,9 @@ async def process_research_with_sections(
         
         # Khởi tạo các services
         edit_service = EditService()
-        storage_service = get_service_factory().create_storage_service()
+        
+        # Gán task_id vào request để các service có thể sử dụng
+        request.task_id = task_id
         
         # Phase 3: Chỉnh sửa
         logger.info(f"[Task {task_id}] === BẮT ĐẦU PHASE CHỈNH SỬA ===")
@@ -669,6 +726,7 @@ async def process_research_with_sections(
             "message": "Đang tổng hợp và chỉnh sửa nội dung từ các phần đã nghiên cứu",
             "timestamp": datetime.utcnow().isoformat(),
             "sections_count": len(sections),
+            "outline_sections_count": len(outline.sections) if outline else 0,
             "step": "starting"
         }
         await research_storage_service.save_task(research_tasks[task_id])
@@ -683,6 +741,8 @@ async def process_research_with_sections(
         })
         await research_storage_service.save_task(research_tasks[task_id])
         
+        # Đảm bảo outline có task_id
+        outline.task_id = task_id
         result = await edit_service.execute(request, outline, sections)
         end_time = time.time()
         
@@ -712,51 +772,32 @@ async def process_research_with_sections(
         await research_storage_service.save_task(research_tasks[task_id])
         
         # Lưu kết quả lên GitHub
+        logger.info(f"[Task {task_id}] === BẮT ĐẦU LƯU KẾT QUẢ LÊN GITHUB ===")
+        
+        # Tạo nội dung Markdown
+        markdown_content = f"# {result.title}\n\n{result.content}\n\n## Nguồn tham khảo\n\n"
+        for idx, source in enumerate(result.sources):
+            markdown_content += f"{idx+1}. [{source}]({source})\n"
+        
+        logger.info(f"[Task {task_id}] Đã tạo nội dung Markdown với {len(markdown_content)} ký tự")
+        
+        # Lưu lên GitHub
         try:
-            logger.info(f"[Task {task_id}] === BẮT ĐẦU LƯU KẾT QUẢ LÊN GITHUB ===")
+            github_service = get_service_factory().create_storage_service("github")
+            file_path = f"researches/{task_id}/result.md"
+            logger.info(f"[Task {task_id}] Đường dẫn file: {file_path}")
             
-            # Tạo nội dung file Markdown
-            markdown_content = f"""# {result.title}
-
-{result.content}
-
-## Nguồn tham khảo
-
-"""
-            for idx, source in enumerate(result.sources):
-                markdown_content += f"{idx+1}. [{source}]({source})\n"
+            start_time = time.time()
+            github_url = await github_service.save(markdown_content, file_path)
+            end_time = time.time()
             
-            logger.info(f"[Task {task_id}] Đã tạo nội dung Markdown với {len(markdown_content)} ký tự")
-            
-            # Lưu lên GitHub
-            github_service = GitHubService()
-            github_url = await github_service.save_research(
-                title=result.title,
-                content=markdown_content,
-                topic=request.topic or request.query
-            )
+            logger.info(f"[Task {task_id}] Đã lưu kết quả lên GitHub trong {end_time - start_time:.2f} giây")
+            logger.info(f"[Task {task_id}] URL GitHub: {github_url}")
             
             # Cập nhật URL GitHub vào task
             research_tasks[task_id].github_url = github_url
-            research_tasks[task_id].progress_info.update({
-                "step": "saved_to_github",
-                "message": "Đã lưu kết quả nghiên cứu lên GitHub thành công",
-                "timestamp": datetime.utcnow().isoformat(),
-                "github_url": github_url
-            })
-            await research_storage_service.save_task(research_tasks[task_id])
-            
-            logger.info(f"[Task {task_id}] Đã lưu kết quả lên GitHub: {github_url}")
-            
         except Exception as e:
             logger.error(f"[Task {task_id}] Lỗi khi lưu kết quả lên GitHub: {str(e)}")
-            research_tasks[task_id].progress_info.update({
-                "step": "github_error",
-                "message": f"Lỗi khi lưu kết quả lên GitHub: {str(e)}",
-                "timestamp": datetime.utcnow().isoformat()
-            })
-            await research_storage_service.save_task(research_tasks[task_id])
-            # Không dừng quá trình nếu lỗi GitHub
         
         # Cập nhật trạng thái task
         research_tasks[task_id].status = ResearchStatus.COMPLETED
@@ -768,7 +809,7 @@ async def process_research_with_sections(
             "timestamp": datetime.utcnow().isoformat(),
             "content_length": len(result.content),
             "sources_count": len(result.sources),
-            "total_time": f"{time.time() - start_time:.2f} giây"
+            "total_time": f"{(datetime.utcnow() - research_tasks[task_id].created_at).total_seconds():.2f} giây"
         }
         await research_storage_service.save_task(research_tasks[task_id])
         
@@ -791,7 +832,7 @@ async def process_research_with_sections(
                 "timestamp": datetime.utcnow().isoformat(),
                 "error": str(e)
             }
-            await research_storage_service.save_task(research_tasks[task_id]) 
+            await research_storage_service.save_task(research_tasks[task_id])
 
 @router.get("/research/{research_id}/progress", response_model=Dict[str, Any])
 async def get_research_progress(research_id: str) -> Dict[str, Any]:
@@ -880,12 +921,56 @@ async def create_complete_research(request: ResearchRequest, background_tasks: B
     Tạo yêu cầu nghiên cứu mới và thực hiện toàn bộ quy trình từ đầu đến cuối,
     tự động phát hiện khi research đã xong để chuyển sang edit.
     
+    Endpoint này thực hiện toàn bộ quy trình nghiên cứu từ đầu đến cuối một cách tự động. Điểm khác biệt chính so với endpoint `/api/v1/research` là:
+
+    1. Tự động phát hiện khi nghiên cứu đã hoàn thành để chuyển sang giai đoạn chỉnh sửa
+    2. Không cần gọi thêm endpoint `/api/v1/research/edit_only`
+    3. Tất cả các bước được thực hiện trong một lần gọi API duy nhất
+    4. Mỗi phần trong bài nghiên cứu sẽ có độ dài từ 350-400 từ
+    5. Trong quá trình chỉnh sửa, nội dung gốc sẽ được giữ nguyên độ dài và chi tiết
+    
     Args:
         request: Thông tin yêu cầu nghiên cứu
         background_tasks: Background tasks để xử lý nghiên cứu
         
     Returns:
         ResearchResponse: Thông tin về research task đã tạo
+        
+    Examples:
+        ```json
+        # Request
+        {
+          "query": "Nghiên cứu về trí tuệ nhân tạo và ứng dụng trong giáo dục",
+          "topic": "Trí tuệ nhân tạo trong giáo dục",
+          "scope": "Tổng quan và ứng dụng thực tế",
+          "target_audience": "Giáo viên và nhà quản lý giáo dục"
+        }
+        
+        # Response
+        {
+          "id": "ca214ee5-6204-4f3d-98c4-4f558e27399b",
+          "status": "pending",
+          "request": {
+            "query": "Nghiên cứu về trí tuệ nhân tạo và ứng dụng trong giáo dục",
+            "topic": "Trí tuệ nhân tạo trong giáo dục",
+            "scope": "Tổng quan và ứng dụng thực tế",
+            "target_audience": "Giáo viên và nhà quản lý giáo dục"
+          },
+          "outline": null,
+          "result": null,
+          "error": null,
+          "github_url": null,
+          "progress_info": {
+            "phase": "pending",
+            "message": "Đã nhận yêu cầu nghiên cứu, đang chuẩn bị xử lý",
+            "timestamp": "2023-03-11T10:15:30.123456"
+          },
+          "created_at": "2023-03-11T10:15:30.123456",
+          "updated_at": "2023-03-11T10:15:30.123456"
+        }
+        ```
+        
+        > **Lưu ý**: Khi chỉ cung cấp `query`, hệ thống sẽ tự động phân tích để xác định `topic`, `scope` và `target_audience`.
     """
     try:
         # Tạo ID mới cho research task
@@ -1053,6 +1138,7 @@ async def process_complete_research(task_id: str, request: ResearchRequest):
         
         # Lưu researched_sections vào task
         research_tasks[task_id].sections = researched_sections
+        research_tasks[task_id].updated_at = datetime.utcnow()
         research_tasks[task_id].progress_info = {
             "phase": "researched",
             "message": "Đã hoàn thành nghiên cứu tất cả các phần",
@@ -1121,11 +1207,11 @@ async def process_complete_research(task_id: str, request: ResearchRequest):
         research_tasks[task_id].updated_at = datetime.utcnow()
         research_tasks[task_id].progress_info = {
             "phase": "completed",
-            "message": "Đã hoàn thành toàn bộ quy trình nghiên cứu",
+            "message": "Đã hoàn thành toàn bộ quá trình nghiên cứu",
             "timestamp": datetime.utcnow().isoformat(),
             "content_length": len(result.content),
             "sources_count": len(result.sources),
-            "total_time": f"{time.time() - start_time:.2f} giây"
+            "total_time": f"{(datetime.utcnow() - research_tasks[task_id].created_at).total_seconds():.2f} giây"
         }
         await research_storage_service.save_task(research_tasks[task_id])
         
@@ -1150,7 +1236,7 @@ async def process_complete_research(task_id: str, request: ResearchRequest):
             }
             await research_storage_service.save_task(research_tasks[task_id])
 
-@router.get("/research/{research_id}/cost", response_model=ResearchCostInfo)
+@router.get("/research/{research_id}/cost", response_model=ResearchCostMonitoring)
 async def get_research_cost(research_id: str):
     """Lấy thông tin chi phí của một research task"""
     try:
@@ -1162,39 +1248,23 @@ async def get_research_cost(research_id: str):
         service_factory = get_service_factory()
         cost_service = service_factory.get_cost_monitoring_service()
         
-        # Kiểm tra cost_service có phương thức get_cost_summary không
-        if not hasattr(cost_service, 'get_cost_summary'):
-            logger.error(f"CostMonitoringService không có phương thức get_cost_summary")
-            raise HTTPException(status_code=500, detail="CostMonitoringService không có phương thức get_cost_summary")
-        
-        # Lấy thông tin chi phí
+        # Lấy thông tin chi phí chi tiết
         try:
-            cost_info = await cost_service.get_cost_summary(research_id)
+            monitoring = await cost_service.get_monitoring(research_id)
+            if not monitoring:
+                monitoring = cost_service.initialize_monitoring(research_id)
+            
+            # Cập nhật summary nếu cần
+            if not monitoring.summary:
+                monitoring._update_summary()
+                
+            return monitoring
+            
         except Exception as cost_error:
             logger.error(f"Lỗi khi lấy thông tin chi phí: {str(cost_error)}")
             raise HTTPException(status_code=500, detail=f"Lỗi khi lấy thông tin chi phí: {str(cost_error)}")
-        
-        # Cập nhật task với thông tin chi phí
-        if hasattr(research_tasks[research_id], 'cost_info') and research_tasks[research_id].cost_info is None:
-            try:
-                task = research_tasks[research_id]
-                # Kiểm tra research_storage_service không phải None
-                if research_storage_service is not None:
-                    # Kiểm tra phương thức update_cost_info là đồng bộ hay bất đồng bộ
-                    if asyncio.iscoroutinefunction(research_storage_service.update_cost_info):
-                        await research_storage_service.update_cost_info(research_id, cost_info)
-                    else:
-                        # Gọi phương thức đồng bộ
-                        research_storage_service.update_cost_info(research_id, cost_info)
-                    logger.info(f"[Task {research_id}] Đã cập nhật thông tin chi phí: ${cost_info.total_cost_usd:.6f} USD")
-                else:
-                    logger.warning(f"Không thể cập nhật cost_info cho task {research_id}: research_storage_service là None")
-            except Exception as e:
-                logger.warning(f"Không thể cập nhật cost_info cho task {research_id}: {str(e)}")
-        
-        return cost_info
+            
     except HTTPException:
-        # Truyền lại HTTPException để giữ nguyên status code
         raise
     except Exception as e:
         logger.error(f"Error retrieving cost information: {str(e)}")

@@ -1,0 +1,30 @@
+{
+  "id": "a5f44a2d-346d-4871-aadd-aa5a11b9f261",
+  "status": "completed",
+  "progress_info": {
+    "phase": "completed",
+    "message": "Đã hoàn thành toàn bộ quá trình nghiên cứu",
+    "timestamp": "2025-03-10T14:32:02.019000",
+    "content_length": 14589,
+    "sources_count": 17,
+    "total_time": "180.69 giây"
+  },
+  "created_at": "2025-03-10T14:29:01.324177",
+  "updated_at": "2025-03-10T14:32:02.018993",
+  "query": "Tác hại của hài nhảm tới kỹ năng tranh luận nghiêm túc",
+  "elapsed_time": {
+    "seconds": 3313.656685,
+    "minutes": 55.22761141666667,
+    "hours": 0.9204601902777778,
+    "formatted": "0:55:13"
+  },
+  "outline_sections_count": 5,
+  "researched_sections_count": 5,
+  "completion_percentage": 100.0,
+  "result_info": {
+    "title": "Hài nhảm và tác động tiêu cực đến kỹ năng tranh luận nghiêm túc",
+    "content_length": 14589,
+    "sources_count": 17
+  },
+  "github_url": "https://github.com/phuc-nt/deep-research-output/blob/main/researches/a5f44a2d-346d-4871-aadd-aa5a11b9f261/result.md"
+}

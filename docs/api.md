@@ -1,8 +1,6 @@
 # Deep Research Agent API
 
-API cho hệ thống nghiên cứu tự động sử dụng AI. Hệ thống cung cấp khả năng thực hiện toàn bộ quy trình nghiên cứu tự động, bao gồm phân tích yêu cầu, tạo dàn ý, nghiên cứu chi tiết, và chỉnh sửa cuối cùng. Với API mới `/research/complete`, người dùng có thể khởi tạo quy trình từ đầu đến cuối chỉ với một lần gọi API đơn giản.
-
-> **Lưu ý**: Chi tiết về luồng tương tác của từng API có thể xem tại [Sequence Diagrams](./sequence_diagrams.md).
+API cho hệ thống nghiên cứu tự động sử dụng AI. Hệ thống cung cấp khả năng thực hiện toàn bộ quy trình nghiên cứu tự động, bao gồm phân tích yêu cầu, tạo dàn ý, nghiên cứu chi tiết, và chỉnh sửa cuối cùng. Mỗi phần trong bài nghiên cứu sẽ có độ dài từ 350-400 từ, đảm bảo độ chi tiết và chất lượng thông tin.
 
 ## Base URL
 
@@ -16,21 +14,103 @@ Dưới đây là danh sách các endpoints hiện có:
 
 | Method | Endpoint | Mô tả |
 |--------|----------|-------|
-| POST | `/research` | Tạo yêu cầu nghiên cứu mới |
-| POST | `/research/complete` | Tạo và thực hiện yêu cầu nghiên cứu hoàn chỉnh (tự động) |
+| POST | `/research/complete` | Tạo và thực hiện yêu cầu nghiên cứu hoàn chỉnh (tự động chuyển sang edit) |
+| POST | `/research` | Tạo yêu cầu nghiên cứu mới (cần gọi edit_only sau khi hoàn thành) |
 | POST | `/research/edit_only` | Chỉnh sửa nội dung nghiên cứu sẵn có |
 | GET | `/research/{research_id}` | Lấy thông tin và kết quả nghiên cứu |
 | GET | `/research/{research_id}/status` | Lấy trạng thái hiện tại của yêu cầu nghiên cứu |
 | GET | `/research/{research_id}/progress` | Lấy thông tin tiến độ chi tiết |
-| GET | `/research/list` | Lấy danh sách các yêu cầu nghiên cứu |
+| GET | `/research/{research_id}/outline` | Lấy dàn ý nghiên cứu |
+| GET | `/research/{research_id}/cost` | Lấy thông tin chi phí chi tiết của nghiên cứu |
+| GET | `/research` | Lấy danh sách các yêu cầu nghiên cứu |
 
-### Tạo yêu cầu nghiên cứu mới
+## Sequence Diagrams
 
+### 1. POST `/research/complete` - Tạo yêu cầu nghiên cứu hoàn chỉnh (tự động)
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API as API Layer
+    participant PrepareService
+    participant ResearchService
+    participant EditService
+    participant StorageService
+    participant GitHubService
+    participant LLMService
+    participant SearchService
+    
+    Client->>API: POST /research/complete (request)
+    Note over Client,API: {query, topic?, scope?, target_audience?}
+    
+    API->>+StorageService: Tạo task mới (task_id)
+    StorageService-->>-API: Task đã tạo
+    
+    API->>Client: Trả về task_id (status: pending)
+    Note over API,Client: Background task bắt đầu
+    
+    API->>+PrepareService: analyze_query(query)
+    PrepareService->>+LLMService: Analyze query
+    LLMService-->>-PrepareService: Kết quả phân tích
+    PrepareService-->>-API: Analysis (topic, scope, target_audience)
+    
+    API->>+StorageService: Cập nhật task (status: analyzing)
+    StorageService-->>-API: Task đã cập nhật
+    
+    API->>+PrepareService: create_outline(request)
+    PrepareService->>+LLMService: Generate outline
+    LLMService-->>-PrepareService: Outline
+    PrepareService-->>-API: Outline (sections)
+    
+    API->>+StorageService: Lưu outline
+    StorageService-->>-API: Outline đã lưu
+    
+    API->>+StorageService: Cập nhật task (status: outlining)
+    StorageService-->>-API: Task đã cập nhật
+    
+    API->>+ResearchService: execute(request, outline)
+    Note over ResearchService: Mỗi phần 350-400 từ
+    ResearchService->>+SearchService: Tìm thông tin cho từng phần
+    SearchService-->>-ResearchService: Kết quả tìm kiếm
+    ResearchService->>+LLMService: Phân tích và tổng hợp
+    LLMService-->>-ResearchService: Nội dung đã nghiên cứu
+    ResearchService-->>-API: Sections đã nghiên cứu
+    
+    API->>+StorageService: Lưu sections
+    StorageService-->>-API: Sections đã lưu
+    
+    API->>+StorageService: Cập nhật task (status: researching)
+    StorageService-->>-API: Task đã cập nhật
+    
+    Note over API: Tự động chuyển sang giai đoạn chỉnh sửa
+    
+    API->>+EditService: execute(request, outline, sections)
+    Note over EditService: Không tóm tắt/rút gọn nội dung
+    Note over EditService: Giữ nguyên độ dài 350-400 từ/phần
+    EditService->>+LLMService: Chỉnh sửa và kết nối các phần
+    LLMService-->>-EditService: Nội dung đã chỉnh sửa
+    EditService-->>-API: Result (title, content, sources)
+    
+    API->>+StorageService: Lưu result
+    StorageService-->>-API: Result đã lưu
+    
+    API->>+StorageService: Cập nhật task (status: editing)
+    StorageService-->>-API: Task đã cập nhật
+    
+    API->>+GitHubService: save(content, file_path)
+    GitHubService-->>-API: github_url
+    
+    API->>+StorageService: Cập nhật task (status: completed, github_url)
+    StorageService-->>-API: Task đã cập nhật
 ```
-POST /research
-```
 
-> **Sequence diagram**: [Xem chi tiết](./sequence_diagrams.md#1-post-research---tạo-yêu-cầu-nghiên-cứu-mới)
+Endpoint này thực hiện toàn bộ quy trình nghiên cứu từ đầu đến cuối một cách tự động. Điểm khác biệt chính so với endpoint `/research` là:
+
+1. Tự động phát hiện khi nghiên cứu đã hoàn thành để chuyển sang giai đoạn chỉnh sửa
+2. Không cần gọi thêm endpoint `/research/edit_only`
+3. Tất cả các bước được thực hiện trong một lần gọi API duy nhất
+4. Mỗi phần trong bài nghiên cứu sẽ có độ dài từ 350-400 từ
+5. Trong quá trình chỉnh sửa, nội dung gốc sẽ được giữ nguyên độ dài và chi tiết
 
 #### Request Body
 
@@ -78,15 +158,57 @@ POST /research
 }
 ```
 
-### Tạo yêu cầu nghiên cứu hoàn chỉnh (tự động)
+### 2. POST `/research` - Tạo yêu cầu nghiên cứu mới
 
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API as API Layer
+    participant PrepareService
+    participant ResearchService
+    participant StorageService
+    participant LLMService
+    participant SearchService
+    
+    Client->>API: POST /research (request)
+    Note over Client,API: {query, topic?, scope?, target_audience?}
+    
+    API->>+StorageService: Tạo task mới (task_id)
+    StorageService-->>-API: Task đã tạo
+    
+    API->>Client: Trả về task_id (status: pending)
+    Note over API,Client: Background task bắt đầu
+    
+    API->>+PrepareService: analyze_query(query)
+    PrepareService->>+LLMService: Analyze query
+    LLMService-->>-PrepareService: Kết quả phân tích
+    PrepareService-->>-API: Analysis (topic, scope, target_audience)
+    
+    API->>+StorageService: Cập nhật task (analysis)
+    StorageService-->>-API: Task đã cập nhật
+    
+    API->>+PrepareService: create_outline(request)
+    PrepareService->>+LLMService: Generate outline
+    LLMService-->>-PrepareService: Outline
+    PrepareService-->>-API: Outline (sections)
+    
+    API->>+StorageService: Lưu outline
+    StorageService-->>-API: Outline đã lưu
+    
+    API->>+ResearchService: execute(request, outline)
+    Note over ResearchService: Mỗi phần 350-400 từ
+    ResearchService->>+SearchService: Tìm thông tin cho từng phần
+    SearchService-->>-ResearchService: Kết quả tìm kiếm
+    ResearchService->>+LLMService: Phân tích và tổng hợp
+    LLMService-->>-ResearchService: Nội dung đã nghiên cứu
+    ResearchService-->>-API: Sections đã nghiên cứu
+    
+    API->>+StorageService: Lưu sections
+    StorageService-->>-API: Sections đã lưu
+    
+    API->>+StorageService: Cập nhật task (status: completed)
+    StorageService-->>-API: Task đã cập nhật
 ```
-POST /research/complete
-```
-
-> **Sequence diagram**: [Xem chi tiết](./sequence_diagrams.md#2-post-researchcomplete---tạo-yêu-cầu-nghiên-cứu-hoàn-chỉnh-tự-động)
-
-Endpoint này thực hiện toàn bộ quy trình nghiên cứu từ đầu đến cuối, tự động phát hiện khi research đã xong để chuyển sang edit. Không cần phải gọi `/research/edit_only` sau khi nghiên cứu hoàn thành.
 
 #### Request Body
 
@@ -134,13 +256,67 @@ Endpoint này thực hiện toàn bộ quy trình nghiên cứu từ đầu đ�
 }
 ```
 
-### Lấy thông tin và kết quả nghiên cứu
+### 3. POST `/research/edit_only` - Chỉnh sửa nội dung nghiên cứu sẵn có
 
-```
-GET /research/{research_id}
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API as API Layer
+    participant EditService
+    participant StorageService
+    participant GitHubService
+    participant LLMService
+    
+    Client->>API: POST /research/edit_only (request)
+    Note over Client,API: {task_id}
+    
+    API->>+StorageService: load_full_task(task_id)
+    StorageService-->>-API: Task, Outline, Sections
+    
+    Note over API: Kiểm tra điều kiện:
+    Note over API: - Có request
+    Note over API: - Có outline
+    Note over API: - Có sections
+    
+    API->>Client: Trả về thông báo đã nhận yêu cầu
+    Note over API,Client: Background task bắt đầu
+    
+    API->>+StorageService: Cập nhật task (status: editing)
+    StorageService-->>-API: Task đã cập nhật
+    
+    API->>+EditService: execute(request, outline, sections)
+    Note over EditService: Không tóm tắt/rút gọn nội dung
+    Note over EditService: Giữ nguyên độ dài 350-400 từ/phần
+    EditService->>+LLMService: Chỉnh sửa và kết nối các phần
+    LLMService-->>-EditService: Nội dung đã chỉnh sửa
+    EditService-->>-API: Result (title, content, sources)
+    
+    API->>+StorageService: Lưu result
+    StorageService-->>-API: Result đã lưu
+    
+    API->>+GitHubService: save(content, file_path)
+    GitHubService-->>-API: github_url
+    
+    API->>+StorageService: Cập nhật task (status: completed, github_url)
+    StorageService-->>-API: Task đã cập nhật
 ```
 
-> **Sequence diagram**: [Xem chi tiết](./sequence_diagrams.md#4-get-researchresearch_id---lấy-thông-tin-và-kết-quả-nghiên-cứu)
+### 4. GET `/research/{research_id}` - Lấy thông tin và kết quả nghiên cứu
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API as API Layer
+    participant StorageService
+    
+    Client->>API: GET /research/{research_id}
+    
+    API->>+StorageService: load_full_task(research_id)
+    StorageService-->>-API: Task, Outline, Sections, Result
+    
+    API->>Client: Trả về đầy đủ thông tin
+    Note over API,Client: {id, status, request, outline, sections, result, github_url, ...}
+```
 
 #### Path Parameters
 
@@ -199,13 +375,22 @@ GET /research/{research_id}
 }
 ```
 
-### Lấy trạng thái nghiên cứu
+### 5. GET `/research/{research_id}/status` - Lấy trạng thái nghiên cứu
 
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API as API Layer
+    participant StorageService
+    
+    Client->>API: GET /research/{research_id}/status
+    
+    API->>+StorageService: load_task(research_id)
+    StorageService-->>-API: Task (basic info)
+    
+    API->>Client: Trả về trạng thái
+    Note over API,Client: {status, progress_info}
 ```
-GET /research/{research_id}/status
-```
-
-> **Sequence diagram**: [Xem chi tiết](./sequence_diagrams.md#5-get-researchresearch_idstatus---lấy-trạng-thái-hiện-tại-của-yêu-cầu-nghiên-cứu)
 
 #### Path Parameters
 
@@ -239,123 +424,49 @@ Các trạng thái có thể:
 - `completed`: Đã hoàn thành
 - `failed`: Thất bại
 
-### Lấy thông tin tiến độ chi tiết
+### 6. GET `/research/{research_id}/progress` - Lấy thông tin tiến độ chi tiết
 
-```
-GET /research/{research_id}/progress
-```
-
-> **Sequence diagram**: [Xem chi tiết](./sequence_diagrams.md#6-get-researchresearch_idprogress---lấy-thông-tin-tiến-độ-chi-tiết)
-
-#### Path Parameters
-
-| Tham số | Kiểu | Mô tả |
-|---------|------|-------|
-| research_id | string | ID của research task |
-
-#### Response
-
-```json
-{
-  "phase": "researching",
-  "message": "Đang nghiên cứu phần 2/5",
-  "timestamp": "2023-03-11T10:18:30.123456",
-  "current_section": 2,
-  "total_sections": 5,
-  "completed_sections": 1,
-  "current_title": "Các ứng dụng hiện tại của AI trong giáo dục",
-  "analysis": {
-    "topic": "Trí tuệ nhân tạo trong giáo dục",
-    "scope": "Tổng quan và ứng dụng thực tế",
-    "target_audience": "Giáo viên và nhà quản lý giáo dục"
-  },
-  "outline_sections_count": 5,
-  "time_elapsed": "182.5 giây"
-}
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API as API Layer
+    participant StorageService
+    
+    Client->>API: GET /research/{research_id}/progress
+    
+    API->>+StorageService: load_task(research_id)
+    StorageService-->>-API: Task (basic info)
+    
+    Alt status = analyzing hoặc outlining
+        API->>+StorageService: load_task(research_id)
+        StorageService-->>-API: Task details
+    else status = researching
+        API->>+StorageService: load_outline(research_id)
+        StorageService-->>-API: Outline
+    else status = editing hoặc completed
+        API->>+StorageService: load_sections(research_id)
+        StorageService-->>-API: Sections
+    end
+    
+    API->>Client: Trả về thông tin tiến độ chi tiết
+    Note over API,Client: {phase, message, timestamp, current_section, total_sections, ...}
 ```
 
-### Lấy dàn ý nghiên cứu
+### 7. GET `/research` - Lấy danh sách các yêu cầu nghiên cứu
 
-```
-GET /research/{research_id}/outline
-```
-
-#### Path Parameters
-
-| Tham số | Kiểu | Mô tả |
-|---------|------|-------|
-| research_id | string | ID của research task |
-
-#### Response
-
-```json
-{
-  "sections": [
-    {
-      "title": "Giới thiệu về trí tuệ nhân tạo trong giáo dục",
-      "description": "Tổng quan về AI và vai trò trong lĩnh vực giáo dục",
-      "content": null
-    },
-    {
-      "title": "Các ứng dụng hiện tại của AI trong giáo dục",
-      "description": "Các ứng dụng đã và đang được triển khai",
-      "content": null
-    }
-  ]
-}
-```
-
-### Chỉ thực hiện giai đoạn chỉnh sửa
-
-```
-POST /research/edit_only
-```
-
-> **Sequence diagram**: [Xem chi tiết](./sequence_diagrams.md#3-post-researchedit_only---chỉnh-sửa-nội-dung-nghiên-cứu-sẵn-có)
-
-#### Request Body
-
-```json
-{
-  "task_id": "ca214ee5-6204-4f3d-98c4-4f558e27399b"
-}
-```
-
-| Tham số | Kiểu | Mô tả |
-|---------|------|-------|
-| task_id | string | ID của research task đã có (bắt buộc) |
-
-#### Response
-
-Giống với response của endpoint `GET /research/{research_id}`
-
-### Danh sách nghiên cứu
-
-```
-GET /research
-```
-
-> **Sequence diagram**: [Xem chi tiết](./sequence_diagrams.md#7-get-researchlist---lấy-danh-sách-các-yêu-cầu-nghiên-cứu)
-
-#### Response
-
-```json
-[
-  {
-    "id": "ca214ee5-6204-4f3d-98c4-4f558e27399b",
-    "status": "completed",
-    "query": "Nghiên cứu về trí tuệ nhân tạo và ứng dụng trong giáo dục",
-    "created_at": "2023-03-11T10:15:30.123456",
-    "updated_at": "2023-03-11T10:20:45.678901"
-  },
-  {
-    "id": "b1a2e3f4-5678-90ab-cdef-1234567890ab",
-    "status": "researching",
-    "query": "Tác động của biến đổi khí hậu đến nông nghiệp",
-    "created_at": "2023-03-11T11:30:20.123456",
-    "updated_at": "2023-03-11T11:35:45.678901"
-  }
-]
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API as API Layer
+    participant StorageService
+    
+    Client->>API: GET /research
+    
+    API->>+StorageService: list_tasks()
+    StorageService-->>-API: Task list
+    
+    API->>Client: Trả về danh sách tasks
+    Note over API,Client: [{id, status, query, created_at, ...}, ...]
 ```
 
 ## Mô hình dữ liệu
