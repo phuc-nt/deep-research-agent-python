@@ -47,7 +47,7 @@ async def main():
     
     # Dữ liệu yêu cầu nghiên cứu
     research_request = {
-        "query": "Tác hại của Tiktok tới kỹ năng đọc sâu"
+        "query": "Tác hại của hài nhảm tới kỹ năng tranh luận nghiêm túc"
     }
     
     logger.info(f"Tạo yêu cầu nghiên cứu: {research_request}")

@@ -1,6 +1,6 @@
 # Deep Research Agent API
 
-API cho hệ thống nghiên cứu tự động sử dụng AI. Hệ thống cung cấp khả năng thực hiện toàn bộ quy trình nghiên cứu tự động, bao gồm phân tích yêu cầu, tạo dàn ý, nghiên cứu chi tiết, và chỉnh sửa cuối cùng. Với API mới `/research/complete`, người dùng có thể khởi tạo quy trình từ đầu đến cuối chỉ với một lần gọi API đơn giản.
+API cho hệ thống nghiên cứu tự động sử dụng AI. Hệ thống cung cấp khả năng thực hiện toàn bộ quy trình nghiên cứu tự động, bao gồm phân tích yêu cầu, tạo dàn ý, nghiên cứu chi tiết, và chỉnh sửa cuối cùng. Mỗi phần trong bài nghiên cứu sẽ có độ dài từ 350-400 từ, đảm bảo độ chi tiết và chất lượng thông tin.
 
 > **Lưu ý**: Chi tiết về luồng tương tác của từng API có thể xem tại [Sequence Diagrams](./sequence_diagrams.md).
 
@@ -16,8 +16,8 @@ Dưới đây là danh sách các endpoints hiện có:
 
 | Method | Endpoint | Mô tả |
 |--------|----------|-------|
-| POST | `/research` | Tạo yêu cầu nghiên cứu mới |
-| POST | `/research/complete` | Tạo và thực hiện yêu cầu nghiên cứu hoàn chỉnh (tự động) |
+| POST | `/research` | Tạo yêu cầu nghiên cứu mới (cần gọi edit_only sau khi hoàn thành) |
+| POST | `/research/complete` | Tạo và thực hiện yêu cầu nghiên cứu hoàn chỉnh (tự động chuyển sang edit) |
 | POST | `/research/edit_only` | Chỉnh sửa nội dung nghiên cứu sẵn có |
 | GET | `/research/{research_id}` | Lấy thông tin và kết quả nghiên cứu |
 | GET | `/research/{research_id}/status` | Lấy trạng thái hiện tại của yêu cầu nghiên cứu |
@@ -29,6 +29,8 @@ Dưới đây là danh sách các endpoints hiện có:
 ```
 POST /research
 ```
+
+Endpoint này khởi tạo một yêu cầu nghiên cứu mới và thực hiện các bước phân tích, tạo dàn ý và nghiên cứu. **Lưu ý**: Sau khi nghiên cứu hoàn thành, bạn cần gọi thêm endpoint `/research/edit_only` để chỉnh sửa và hoàn thiện nội dung.
 
 > **Sequence diagram**: [Xem chi tiết](./sequence_diagrams.md#1-post-research---tạo-yêu-cầu-nghiên-cứu-mới)
 
@@ -84,9 +86,15 @@ POST /research
 POST /research/complete
 ```
 
-> **Sequence diagram**: [Xem chi tiết](./sequence_diagrams.md#2-post-researchcomplete---tạo-yêu-cầu-nghiên-cứu-hoàn-chỉnh-tự-động)
+Endpoint này thực hiện toàn bộ quy trình nghiên cứu từ đầu đến cuối một cách tự động. Điểm khác biệt chính so với endpoint `/research` là:
 
-Endpoint này thực hiện toàn bộ quy trình nghiên cứu từ đầu đến cuối, tự động phát hiện khi research đã xong để chuyển sang edit. Không cần phải gọi `/research/edit_only` sau khi nghiên cứu hoàn thành.
+1. Tự động phát hiện khi nghiên cứu đã hoàn thành để chuyển sang giai đoạn chỉnh sửa
+2. Không cần gọi thêm endpoint `/research/edit_only`
+3. Tất cả các bước được thực hiện trong một lần gọi API duy nhất
+4. Mỗi phần trong bài nghiên cứu sẽ có độ dài từ 350-400 từ
+5. Trong quá trình chỉnh sửa, nội dung gốc sẽ được giữ nguyên độ dài và chi tiết, chỉ tập trung vào việc kết nối các phần một cách mạch lạc
+
+> **Sequence diagram**: [Xem chi tiết](./sequence_diagrams.md#2-post-researchcomplete---tạo-yêu-cầu-nghiên-cứu-hoàn-chỉnh-tự-động)
 
 #### Request Body
 
@@ -305,11 +313,19 @@ GET /research/{research_id}/outline
 }
 ```
 
-### Chỉ thực hiện giai đoạn chỉnh sửa
+### Chỉnh sửa nội dung nghiên cứu
 
 ```
 POST /research/edit_only
 ```
+
+Endpoint này thực hiện việc chỉnh sửa nội dung nghiên cứu cho một task cụ thể. Trong quá trình chỉnh sửa:
+- Kiểm tra các điều kiện cần thiết (request, outline, sections) trước khi xử lý
+- Không tóm tắt hay rút gọn nội dung của các phần
+- Giữ nguyên độ dài và chi tiết của mỗi phần (350-400 từ)
+- Tập trung vào việc kết nối các phần một cách mạch lạc
+- Thêm phần mở đầu và kết luận phù hợp
+- Đảm bảo tính nhất quán về văn phong và cách trình bày
 
 > **Sequence diagram**: [Xem chi tiết](./sequence_diagrams.md#3-post-researchedit_only---chỉnh-sửa-nội-dung-nghiên-cứu-sẵn-có)
 
@@ -323,11 +339,26 @@ POST /research/edit_only
 
 | Tham số | Kiểu | Mô tả |
 |---------|------|-------|
-| task_id | string | ID của research task đã có (bắt buộc) |
+| task_id | string | ID của research task cần chỉnh sửa (bắt buộc) |
 
 #### Response
 
 Giống với response của endpoint `GET /research/{research_id}`
+
+#### Error Response
+
+```json
+{
+  "detail": "Không thể tải đầy đủ thông tin task ca214ee5-6204-4f3d-98c4-4f558e27399b"
+}
+```
+
+Các trường hợp lỗi có thể xảy ra:
+- 404: Không tìm thấy task với ID được chỉ định
+- 400: Task không có thông tin request
+- 400: Task không có outline
+- 400: Task không có sections
+- 500: Lỗi server khi xử lý
 
 ### Danh sách nghiên cứu
 

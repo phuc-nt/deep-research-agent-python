@@ -38,6 +38,7 @@ sequenceDiagram
     StorageService-->>-API: Outline đã lưu
     
     API->>+ResearchService: execute(request, outline)
+    Note over ResearchService: Mỗi phần 350-400 từ
     ResearchService->>+SearchService: Tìm thông tin cho từng phần
     SearchService-->>-ResearchService: Kết quả tìm kiếm
     ResearchService->>+LLMService: Phân tích và tổng hợp
@@ -94,6 +95,7 @@ sequenceDiagram
     StorageService-->>-API: Task đã cập nhật
     
     API->>+ResearchService: execute(request, outline)
+    Note over ResearchService: Mỗi phần 350-400 từ
     ResearchService->>+SearchService: Tìm thông tin cho từng phần
     SearchService-->>-ResearchService: Kết quả tìm kiếm
     ResearchService->>+LLMService: Phân tích và tổng hợp
@@ -109,7 +111,9 @@ sequenceDiagram
     Note over API: Tự động chuyển sang giai đoạn chỉnh sửa
     
     API->>+EditService: execute(request, outline, sections)
-    EditService->>+LLMService: Chỉnh sửa và tổng hợp nội dung
+    Note over EditService: Không tóm tắt/rút gọn nội dung
+    Note over EditService: Giữ nguyên độ dài 350-400 từ/phần
+    EditService->>+LLMService: Chỉnh sửa và kết nối các phần
     LLMService-->>-EditService: Nội dung đã chỉnh sửa
     EditService-->>-API: Result (title, content, sources)
     
@@ -143,6 +147,11 @@ sequenceDiagram
     API->>+StorageService: load_full_task(task_id)
     StorageService-->>-API: Task, Outline, Sections
     
+    Note over API: Kiểm tra điều kiện:
+    Note over API: - Có request
+    Note over API: - Có outline
+    Note over API: - Có sections
+    
     API->>Client: Trả về thông báo đã nhận yêu cầu
     Note over API,Client: Background task bắt đầu
     
@@ -150,7 +159,9 @@ sequenceDiagram
     StorageService-->>-API: Task đã cập nhật
     
     API->>+EditService: execute(request, outline, sections)
-    EditService->>+LLMService: Chỉnh sửa và tổng hợp nội dung
+    Note over EditService: Không tóm tắt/rút gọn nội dung
+    Note over EditService: Giữ nguyên độ dài 350-400 từ/phần
+    EditService->>+LLMService: Chỉnh sửa và kết nối các phần
     LLMService-->>-EditService: Nội dung đã chỉnh sửa
     EditService-->>-API: Result (title, content, sources)
     

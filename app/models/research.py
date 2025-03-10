@@ -21,6 +21,10 @@ class ResearchRequest(BaseModel):
     target_audience: Optional[str] = Field(None, description="Đối tượng độc giả (tùy chọn)")
     task_id: Optional[str] = Field(None, description="ID của task (được sử dụng nội bộ)")
 
+class EditRequest(BaseModel):
+    """Input for editing a research task"""
+    task_id: str = Field(..., description="ID của research task cần chỉnh sửa")
+
 class ResearchSection(BaseModel):
     """A section in the research paper"""
     title: str = Field(..., description="Tiêu đề phần")
