@@ -163,3 +163,33 @@ async def test_research_error_handling(sample_request):
         assert "status" in data
         assert "id" in data
         assert data["id"] == task_id
+
+def test_edit_only(sample_request):
+    """Test edit_only endpoint"""
+    # Tạo research task mới
+    response = client.post("/api/v1/research", json=sample_request)
+    assert response.status_code == 200
+    data = response.json()
+    research_id = data["id"]
+    
+    # Gọi endpoint edit_only
+    edit_request = {
+        "research_id": research_id
+    }
+    response = client.post("/api/v1/research/edit_only", json=edit_request)
+    assert response.status_code == 200
+    
+    data = response.json()
+    assert data["id"] == research_id
+    assert data["status"] == ResearchStatus.EDITING
+    assert "progress_info" in data
+    assert data["progress_info"]["phase"] == "editing"
+    
+def test_edit_only_not_found():
+    """Test edit_only endpoint with non-existent research_id"""
+    edit_request = {
+        "research_id": "non-existent-id"
+    }
+    response = client.post("/api/v1/research/edit_only", json=edit_request)
+    assert response.status_code == 404
+    assert "Không thể tải đầy đủ thông tin task" in response.json()["detail"]

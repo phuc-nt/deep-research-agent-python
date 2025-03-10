@@ -19,7 +19,7 @@ from app.models.research import (
     ResearchCostInfo,
     EditRequest
 )
-from app.models.cost import PhaseTimingInfo
+from app.models.cost import PhaseTimingInfo, ResearchCostMonitoring
 from app.services.research.prepare import PrepareService
 from app.services.research.research import ResearchService
 from app.services.research.edit import EditService
@@ -276,58 +276,58 @@ async def create_research(
             detail=f"Lỗi khi tạo research task: {str(e)}"
         )
 
-@router.get("/research/{task_id}", response_model=ResearchResponse)
-async def get_research(task_id: str) -> ResearchResponse:
+@router.get("/research/{research_id}", response_model=ResearchResponse)
+async def get_research(research_id: str) -> ResearchResponse:
     """
     Lấy thông tin đầy đủ về một research task
     """
     try:
-        logger.info(f"Lấy thông tin đầy đủ research task {task_id}")
+        logger.info(f"Lấy thông tin đầy đủ research task {research_id}")
         
         # Kiểm tra trong bộ nhớ
-        if task_id not in research_tasks:
+        if research_id not in research_tasks:
             # Thử tải từ file
-            logger.info(f"Task {task_id} không có trong bộ nhớ, thử tải từ file...")
-            task = await research_storage_service.load_full_task(task_id)
+            logger.info(f"Task {research_id} không có trong bộ nhớ, thử tải từ file...")
+            task = await research_storage_service.load_full_task(research_id)
             
             if task:
                 # Cập nhật vào bộ nhớ
-                research_tasks[task_id] = task
-                logger.info(f"Đã tải đầy đủ task {task_id} từ file, trạng thái: {task.status}")
+                research_tasks[research_id] = task
+                logger.info(f"Đã tải đầy đủ task {research_id} từ file, trạng thái: {task.status}")
             else:
-                logger.error(f"Không tìm thấy research task {task_id}")
+                logger.error(f"Không tìm thấy research task {research_id}")
                 raise HTTPException(
                     status_code=404,
-                    detail=f"Research task {task_id} not found"
+                    detail=f"Research task {research_id} not found"
                 )
         else:
             # Nếu task đã có trong bộ nhớ nhưng chưa có đầy đủ thông tin
-            task = research_tasks[task_id]
+            task = research_tasks[research_id]
             
             # Tải outline nếu chưa có
             if not task.outline:
-                outline = await research_storage_service.load_outline(task_id)
+                outline = await research_storage_service.load_outline(research_id)
                 if outline:
                     task.outline = outline
             
             # Tải sections nếu chưa có
             if not task.sections and task.status in [ResearchStatus.EDITING, ResearchStatus.COMPLETED]:
-                sections = await research_storage_service.load_sections(task_id)
+                sections = await research_storage_service.load_sections(research_id)
                 if sections:
                     task.sections = sections
             
             # Tải result nếu chưa có
             if not task.result and task.status == ResearchStatus.COMPLETED:
-                result = await research_storage_service.load_result(task_id)
+                result = await research_storage_service.load_result(research_id)
                 if result:
                     task.result = result
             
-        return research_tasks[task_id]
+        return research_tasks[research_id]
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Lỗi khi lấy thông tin research task {task_id}: {str(e)}")
+        logger.error(f"Lỗi khi lấy thông tin research task {research_id}: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=str(e)
@@ -517,49 +517,49 @@ async def continue_with_editing(
     Tiếp tục xử lý giai đoạn chỉnh sửa cho task được chỉ định
     
     Args:
-        request (EditRequest): Request chứa task_id cần chỉnh sửa
+        request (EditRequest): Request chứa research_id cần chỉnh sửa
         background_tasks: Background tasks để xử lý chỉnh sửa
     
     Returns:
         ResearchResponse: Thông tin về research task đã cập nhật
     """
     try:
-        task_id = request.task_id
+        research_id = request.research_id
         
         # Tải task đầy đủ
-        task = await research_storage_service.load_full_task(task_id)
+        task = await research_storage_service.load_full_task(research_id)
         if not task:
-            logger.error(f"Không thể tải đầy đủ thông tin task {task_id}")
+            logger.error(f"Không thể tải đầy đủ thông tin task {research_id}")
             raise HTTPException(
                 status_code=404,
-                detail=f"Không thể tải đầy đủ thông tin task {task_id}"
+                detail=f"Không thể tải đầy đủ thông tin task {research_id}"
             )
         
-        logger.info(f"Tìm thấy task với ID: {task_id}")
+        logger.info(f"Tìm thấy task với ID: {research_id}")
         
         # Kiểm tra xem task có đủ dữ liệu để tiếp tục không
         if not task.request:
-            logger.error(f"Task {task_id} không có thông tin request")
+            logger.error(f"Task {research_id} không có thông tin request")
             raise HTTPException(
                 status_code=400,
-                detail=f"Task {task_id} không có thông tin request"
+                detail=f"Task {research_id} không có thông tin request"
             )
         
         # Tải outline và sections từ file
         outline = task.outline
         if not outline:
-            logger.error(f"Task {task_id} không có outline")
+            logger.error(f"Task {research_id} không có outline")
             raise HTTPException(
                 status_code=400,
-                detail=f"Task {task_id} không có outline"
+                detail=f"Task {research_id} không có outline"
             )
         
         sections = task.sections
         if not sections:
-            logger.error(f"Task {task_id} không có sections")
+            logger.error(f"Task {research_id} không có sections")
             raise HTTPException(
                 status_code=400,
-                detail=f"Task {task_id} không có sections"
+                detail=f"Task {research_id} không có sections"
             )
         
         # Cập nhật trạng thái task và thông tin tiến độ
@@ -574,15 +574,15 @@ async def continue_with_editing(
         }
         
         # Lưu task vào bộ nhớ và file
-        research_tasks[task_id] = task
+        research_tasks[research_id] = task
         await research_storage_service.save_task(task)
         
-        logger.info(f"Đã cập nhật task {task_id} để tiếp tục xử lý giai đoạn chỉnh sửa")
+        logger.info(f"Đã cập nhật task {research_id} để tiếp tục xử lý giai đoạn chỉnh sửa")
         logger.info(f"Thông tin yêu cầu: Query: '{task.request.query}', Topic: '{task.request.topic}', Scope: '{task.request.scope}', Target Audience: '{task.request.target_audience}'")
         logger.info(f"Số phần đã nghiên cứu: {len(sections)}")
         
         # Chạy quá trình chỉnh sửa trong background
-        background_tasks.add_task(process_research_with_sections, task_id, task.request, outline, sections)
+        background_tasks.add_task(process_research_with_sections, research_id, task.request, outline, sections)
         
         return task
         
@@ -1116,7 +1116,7 @@ async def process_complete_research(task_id: str, request: ResearchRequest):
             }
             await research_storage_service.save_task(research_tasks[task_id])
 
-@router.get("/research/{research_id}/cost", response_model=ResearchCostInfo)
+@router.get("/research/{research_id}/cost", response_model=ResearchCostMonitoring)
 async def get_research_cost(research_id: str):
     """Lấy thông tin chi phí của một research task"""
     try:
@@ -1128,39 +1128,23 @@ async def get_research_cost(research_id: str):
         service_factory = get_service_factory()
         cost_service = service_factory.get_cost_monitoring_service()
         
-        # Kiểm tra cost_service có phương thức get_cost_summary không
-        if not hasattr(cost_service, 'get_cost_summary'):
-            logger.error(f"CostMonitoringService không có phương thức get_cost_summary")
-            raise HTTPException(status_code=500, detail="CostMonitoringService không có phương thức get_cost_summary")
-        
-        # Lấy thông tin chi phí
+        # Lấy thông tin chi phí chi tiết
         try:
-            cost_info = await cost_service.get_cost_summary(research_id)
+            monitoring = await cost_service.get_monitoring(research_id)
+            if not monitoring:
+                monitoring = cost_service.initialize_monitoring(research_id)
+            
+            # Cập nhật summary nếu cần
+            if not monitoring.summary:
+                monitoring._update_summary()
+                
+            return monitoring
+            
         except Exception as cost_error:
             logger.error(f"Lỗi khi lấy thông tin chi phí: {str(cost_error)}")
             raise HTTPException(status_code=500, detail=f"Lỗi khi lấy thông tin chi phí: {str(cost_error)}")
-        
-        # Cập nhật task với thông tin chi phí
-        if hasattr(research_tasks[research_id], 'cost_info') and research_tasks[research_id].cost_info is None:
-            try:
-                task = research_tasks[research_id]
-                # Kiểm tra research_storage_service không phải None
-                if research_storage_service is not None:
-                    # Kiểm tra phương thức update_cost_info là đồng bộ hay bất đồng bộ
-                    if asyncio.iscoroutinefunction(research_storage_service.update_cost_info):
-                        await research_storage_service.update_cost_info(research_id, cost_info)
-                    else:
-                        # Gọi phương thức đồng bộ
-                        research_storage_service.update_cost_info(research_id, cost_info)
-                    logger.info(f"[Task {research_id}] Đã cập nhật thông tin chi phí: ${cost_info.total_cost_usd:.6f} USD")
-                else:
-                    logger.warning(f"Không thể cập nhật cost_info cho task {research_id}: research_storage_service là None")
-            except Exception as e:
-                logger.warning(f"Không thể cập nhật cost_info cho task {research_id}: {str(e)}")
-        
-        return cost_info
+            
     except HTTPException:
-        # Truyền lại HTTPException để giữ nguyên status code
         raise
     except Exception as e:
         logger.error(f"Error retrieving cost information: {str(e)}")

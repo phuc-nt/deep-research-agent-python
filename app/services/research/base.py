@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 class ResearchRequest(BaseModel):
     """Model cho yêu cầu nghiên cứu"""
@@ -15,7 +15,7 @@ class ResearchSection(BaseModel):
     title: str
     description: str
     content: Optional[str] = None
-    sources: Optional[List[str]] = None
+    sources: Optional[List[str]] = Field(default_factory=list)
 
 class ResearchOutline(BaseModel):
     """Model cho dàn ý nghiên cứu"""
@@ -27,7 +27,7 @@ class ResearchResult(BaseModel):
     title: str
     content: str
     sections: List[ResearchSection]
-    sources: List[str]
+    sources: List[str] = Field(default_factory=list)
 
 class BaseResearchPhase(ABC):
     """Base class cho các phase trong quy trình nghiên cứu"""

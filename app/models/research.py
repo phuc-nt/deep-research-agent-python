@@ -23,14 +23,14 @@ class ResearchRequest(BaseModel):
 
 class EditRequest(BaseModel):
     """Input for editing a research task"""
-    task_id: str = Field(..., description="ID của research task cần chỉnh sửa")
+    research_id: str = Field(..., description="ID của research task cần chỉnh sửa")
 
 class ResearchSection(BaseModel):
     """A section in the research paper"""
     title: str = Field(..., description="Tiêu đề phần")
     description: Optional[str] = Field(None, description="Mô tả phần")
     content: Optional[str] = Field(None, description="Nội dung chi tiết")
-    sources: List[str] = Field(default_factory=list)
+    sources: Optional[List[str]] = Field(default_factory=list)
 
 class ResearchOutline(BaseModel):
     """Outline for a research paper"""
