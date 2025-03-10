@@ -219,7 +219,7 @@ class ResearchPrompts:
     3. Đảm bảo phù hợp với đối tượng đọc
     4. Thêm trích dẫn nguồn cho mỗi thông tin quan trọng (dạng link HTML)
     5. Viết bằng tiếng Việt
-    6. Độ dài khoảng 500-800 từ
+    6. Độ dài chính xác từ 350 đến 400 từ
     
     Format kết quả:
     - Nội dung được chia thành các đoạn rõ ràng
@@ -244,14 +244,14 @@ class EditPrompts:
     {content}
     
     Yêu cầu:
-    1. Đảm bảo tính mạch lạc và liên kết giữa các phần
-    2. Thêm phần giới thiệu tổng quan ở đầu bài
-    3. Thêm phần kết luận tổng hợp ở cuối bài
-    4. Chỉnh sửa các lỗi ngữ pháp, chính tả
-    5. Đảm bảo văn phong nhất quán, phù hợp với đối tượng đọc
-    6. Giữ nguyên các trích dẫn nguồn
-    7. Viết bằng tiếng Việt
-    8. Độ dài khoảng 2000-3000 từ
+    1. KHÔNG tóm tắt hay rút gọn nội dung của các phần, giữ nguyên độ dài và chi tiết của mỗi phần
+    2. Chỉ kết nối các phần lại với nhau thành một bài viết mạch lạc, thêm các câu chuyển tiếp giữa các phần
+    3. Thêm phần giới thiệu tổng quan ở đầu bài
+    4. Thêm phần kết luận tổng hợp ở cuối bài
+    5. Chỉnh sửa các lỗi ngữ pháp, chính tả
+    6. Đảm bảo văn phong nhất quán, phù hợp với đối tượng đọc
+    7. Giữ nguyên các trích dẫn nguồn
+    8. Viết bằng tiếng Việt
     
     Trả về nội dung đã chỉnh sửa hoàn chỉnh.
     """
