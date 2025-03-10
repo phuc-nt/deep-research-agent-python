@@ -232,12 +232,51 @@ async def create_research(
     """
     Tạo một yêu cầu nghiên cứu mới
     
+    Endpoint này khởi tạo một yêu cầu nghiên cứu mới và thực hiện các bước phân tích, tạo dàn ý và nghiên cứu. 
+    **Lưu ý**: Sau khi nghiên cứu hoàn thành, bạn cần gọi thêm endpoint `/api/v1/research/edit_only` để chỉnh sửa và hoàn thiện nội dung.
+    
     Args:
         request: Thông tin yêu cầu nghiên cứu
         background_tasks: Background tasks để xử lý nghiên cứu
         
     Returns:
         ResearchResponse: Thông tin về research task đã tạo
+        
+    Examples:
+        ```json
+        # Request
+        {
+          "query": "Nghiên cứu về trí tuệ nhân tạo và ứng dụng trong giáo dục",
+          "topic": "Trí tuệ nhân tạo trong giáo dục",
+          "scope": "Tổng quan và ứng dụng thực tế",
+          "target_audience": "Giáo viên và nhà quản lý giáo dục"
+        }
+        
+        # Response
+        {
+          "id": "ca214ee5-6204-4f3d-98c4-4f558e27399b",
+          "status": "pending",
+          "request": {
+            "query": "Nghiên cứu về trí tuệ nhân tạo và ứng dụng trong giáo dục",
+            "topic": "Trí tuệ nhân tạo trong giáo dục",
+            "scope": "Tổng quan và ứng dụng thực tế",
+            "target_audience": "Giáo viên và nhà quản lý giáo dục"
+          },
+          "outline": null,
+          "result": null,
+          "error": null,
+          "github_url": null,
+          "progress_info": {
+            "phase": "pending",
+            "message": "Đã nhận yêu cầu nghiên cứu, đang chuẩn bị xử lý",
+            "timestamp": "2023-03-11T10:15:30.123456"
+          },
+          "created_at": "2023-03-11T10:15:30.123456",
+          "updated_at": "2023-03-11T10:15:30.123456"
+        }
+        ```
+        
+        > **Lưu ý**: Khi chỉ cung cấp `query`, hệ thống sẽ tự động phân tích để xác định `topic`, `scope` và `target_audience`.
     """
     try:
         logger.info(f"Nhận yêu cầu nghiên cứu mới: {request.topic or request.query}")
@@ -254,7 +293,7 @@ async def create_research(
             updated_at=datetime.utcnow(),
             progress_info={
                 "phase": "pending",
-                "message": "Đã nhận yêu cầu nghiên cứu và đang chuẩn bị xử lý",
+                "message": "Đã nhận yêu cầu nghiên cứu, đang chuẩn bị xử lý",
                 "timestamp": datetime.utcnow().isoformat()
             }
         )
@@ -280,6 +319,63 @@ async def create_research(
 async def get_research(research_id: str) -> ResearchResponse:
     """
     Lấy thông tin đầy đủ về một research task
+    
+    Endpoint này trả về toàn bộ thông tin của một research task bao gồm yêu cầu gốc,
+    dàn ý, nội dung đã nghiên cứu, kết quả hoàn chỉnh (nếu có), và các thông tin khác.
+    
+    Args:
+        research_id: ID của research task
+    
+    Returns:
+        ResearchResponse: Thông tin đầy đủ của research task
+        
+    Raises:
+        HTTPException: Nếu không tìm thấy research task
+        
+    Examples:
+        ```
+        {
+          "id": "ca214ee5-6204-4f3d-98c4-4f558e27399b",
+          "status": "completed",
+          "request": {
+            "query": "Nghiên cứu về trí tuệ nhân tạo và ứng dụng trong giáo dục",
+            "topic": "Trí tuệ nhân tạo trong giáo dục",
+            "scope": "Tổng quan và ứng dụng thực tế",
+            "target_audience": "Giáo viên và nhà quản lý giáo dục"
+          },
+          "outline": {
+            "sections": [
+              {
+                "title": "Giới thiệu về trí tuệ nhân tạo trong giáo dục",
+                "description": "Tổng quan về AI và vai trò trong lĩnh vực giáo dục",
+                "content": "..."
+              }
+            ]
+          },
+          "result": {
+            "title": "Trí tuệ nhân tạo trong giáo dục: Hiện tại và tương lai",
+            "content": "...",
+            "sections": [],
+            "sources": [
+              "https://example.com/source1",
+              "https://example.com/source2"
+            ]
+          },
+          "error": null,
+          "github_url": "https://github.com/username/repo/research-123",
+          "progress_info": {
+            "phase": "completed",
+            "message": "Đã hoàn thành toàn bộ quá trình nghiên cứu",
+            "timestamp": "2023-03-11T10:20:45.678901",
+            "time_taken": "302.5 giây",
+            "content_length": 12405,
+            "sources_count": 15,
+            "total_time": "305.3 giây"
+          },
+          "created_at": "2023-03-11T10:15:30.123456",
+          "updated_at": "2023-03-11T10:20:45.678901"
+        }
+        ```
     """
     try:
         logger.info(f"Lấy thông tin đầy đủ research task {research_id}")
@@ -676,23 +772,17 @@ async def process_research_with_sections(
         await research_storage_service.save_task(research_tasks[task_id])
         
         # Lưu kết quả lên GitHub
+        logger.info(f"[Task {task_id}] === BẮT ĐẦU LƯU KẾT QUẢ LÊN GITHUB ===")
+        
+        # Tạo nội dung Markdown
+        markdown_content = f"# {result.title}\n\n{result.content}\n\n## Nguồn tham khảo\n\n"
+        for idx, source in enumerate(result.sources):
+            markdown_content += f"{idx+1}. [{source}]({source})\n"
+        
+        logger.info(f"[Task {task_id}] Đã tạo nội dung Markdown với {len(markdown_content)} ký tự")
+        
+        # Lưu lên GitHub
         try:
-            logger.info(f"[Task {task_id}] === BẮT ĐẦU LƯU KẾT QUẢ LÊN GITHUB ===")
-            
-            # Tạo nội dung file Markdown
-            markdown_content = f"""# {result.title}
-
-{result.content}
-
-## Nguồn tham khảo
-
-"""
-            for idx, source in enumerate(result.sources):
-                markdown_content += f"{idx+1}. [{source}]({source})\n"
-            
-            logger.info(f"[Task {task_id}] Đã tạo nội dung Markdown với {len(markdown_content)} ký tự")
-            
-            # Lưu lên GitHub
             github_service = get_service_factory().create_storage_service("github")
             file_path = f"researches/{task_id}/result.md"
             logger.info(f"[Task {task_id}] Đường dẫn file: {file_path}")
@@ -701,27 +791,13 @@ async def process_research_with_sections(
             github_url = await github_service.save(markdown_content, file_path)
             end_time = time.time()
             
+            logger.info(f"[Task {task_id}] Đã lưu kết quả lên GitHub trong {end_time - start_time:.2f} giây")
+            logger.info(f"[Task {task_id}] URL GitHub: {github_url}")
+            
             # Cập nhật URL GitHub vào task
             research_tasks[task_id].github_url = github_url
-            research_tasks[task_id].progress_info.update({
-                "step": "saved_to_github",
-                "message": "Đã lưu kết quả nghiên cứu lên GitHub thành công",
-                "timestamp": datetime.utcnow().isoformat(),
-                "github_url": github_url
-            })
-            await research_storage_service.save_task(research_tasks[task_id])
-            
-            logger.info(f"[Task {task_id}] Đã lưu kết quả lên GitHub: {github_url}")
-            
         except Exception as e:
             logger.error(f"[Task {task_id}] Lỗi khi lưu kết quả lên GitHub: {str(e)}")
-            research_tasks[task_id].progress_info.update({
-                "step": "github_error",
-                "message": f"Lỗi khi lưu kết quả lên GitHub: {str(e)}",
-                "timestamp": datetime.utcnow().isoformat()
-            })
-            await research_storage_service.save_task(research_tasks[task_id])
-            # Không dừng quá trình nếu lỗi GitHub
         
         # Cập nhật trạng thái task
         research_tasks[task_id].status = ResearchStatus.COMPLETED
@@ -845,12 +921,56 @@ async def create_complete_research(request: ResearchRequest, background_tasks: B
     Tạo yêu cầu nghiên cứu mới và thực hiện toàn bộ quy trình từ đầu đến cuối,
     tự động phát hiện khi research đã xong để chuyển sang edit.
     
+    Endpoint này thực hiện toàn bộ quy trình nghiên cứu từ đầu đến cuối một cách tự động. Điểm khác biệt chính so với endpoint `/api/v1/research` là:
+
+    1. Tự động phát hiện khi nghiên cứu đã hoàn thành để chuyển sang giai đoạn chỉnh sửa
+    2. Không cần gọi thêm endpoint `/api/v1/research/edit_only`
+    3. Tất cả các bước được thực hiện trong một lần gọi API duy nhất
+    4. Mỗi phần trong bài nghiên cứu sẽ có độ dài từ 350-400 từ
+    5. Trong quá trình chỉnh sửa, nội dung gốc sẽ được giữ nguyên độ dài và chi tiết
+    
     Args:
         request: Thông tin yêu cầu nghiên cứu
         background_tasks: Background tasks để xử lý nghiên cứu
         
     Returns:
         ResearchResponse: Thông tin về research task đã tạo
+        
+    Examples:
+        ```json
+        # Request
+        {
+          "query": "Nghiên cứu về trí tuệ nhân tạo và ứng dụng trong giáo dục",
+          "topic": "Trí tuệ nhân tạo trong giáo dục",
+          "scope": "Tổng quan và ứng dụng thực tế",
+          "target_audience": "Giáo viên và nhà quản lý giáo dục"
+        }
+        
+        # Response
+        {
+          "id": "ca214ee5-6204-4f3d-98c4-4f558e27399b",
+          "status": "pending",
+          "request": {
+            "query": "Nghiên cứu về trí tuệ nhân tạo và ứng dụng trong giáo dục",
+            "topic": "Trí tuệ nhân tạo trong giáo dục",
+            "scope": "Tổng quan và ứng dụng thực tế",
+            "target_audience": "Giáo viên và nhà quản lý giáo dục"
+          },
+          "outline": null,
+          "result": null,
+          "error": null,
+          "github_url": null,
+          "progress_info": {
+            "phase": "pending",
+            "message": "Đã nhận yêu cầu nghiên cứu, đang chuẩn bị xử lý",
+            "timestamp": "2023-03-11T10:15:30.123456"
+          },
+          "created_at": "2023-03-11T10:15:30.123456",
+          "updated_at": "2023-03-11T10:15:30.123456"
+        }
+        ```
+        
+        > **Lưu ý**: Khi chỉ cung cấp `query`, hệ thống sẽ tự động phân tích để xác định `topic`, `scope` và `target_audience`.
     """
     try:
         # Tạo ID mới cho research task
