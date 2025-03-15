@@ -1,0 +1,58 @@
+shared:
+  image: python:3.11-slim
+  environment:
+    PYTHONPATH: $PYTHONPATH:/sd/workspace
+    PYTHONUNBUFFERED: "1"
+
+jobs:
+  main:
+    requires: [~pr, ~commit]
+    steps:
+      - install_dependencies: |
+          apt-get update && apt-get install -y --no-install-recommends git
+          pip install --no-cache-dir -r requirements.txt
+          pip install --no-cache-dir pytest pytest-cov flake8 black mypy
+      - lint: |
+          echo "Running linters..."
+          flake8 app tests
+          black --check app tests
+          mypy app
+      - test: |
+          echo "Running tests..."
+          pytest tests/ --cov=app --cov-report=term
+
+  build:
+    requires: [main]
+    steps:
+      - setup: |
+          apt-get update && apt-get install -y --no-install-recommends docker.io
+      - build_docker: |
+          echo "Building Docker image..."
+          docker build -t deep-research-agent:local .
+      - verify_image: |
+          echo "Verifying Docker image..."
+          docker images | grep deep-research-agent
+
+  deploy-local:
+    requires: [build]
+    steps:
+      - setup: |
+          apt-get update && apt-get install -y --no-install-recommends curl
+      - run_container: |
+          echo "Running container locally..."
+          # Dừng container cũ nếu đang chạy
+          docker stop deep-research-agent || true
+          docker rm deep-research-agent || true
+          
+          # Chạy container mới
+          docker run -d --name deep-research-agent \
+            -p 8000:8000 \
+            -v $(pwd)/data:/app/data \
+            deep-research-agent:local
+      - check_health: |
+          echo "Checking application health..."
+          # Đợi ứng dụng khởi động
+          sleep 5
+          # Kiểm tra health endpoint
+          curl -f http://localhost:8000/health || (docker logs deep-research-agent && exit 1)
+          echo "Application is running successfully!" 
