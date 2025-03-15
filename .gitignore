@@ -51,3 +51,4 @@ data/
 test_edit.py
 test_perplexity.py
 test_services.py
+.DS_Store

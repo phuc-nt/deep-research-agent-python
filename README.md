@@ -1,49 +1,49 @@
 # Deep Research Agent
 
-Một agent thông minh giúp thực hiện nghiên cứu chuyên sâu và tạo ra các bài viết phân tích chất lượng cao. Hệ thống hỗ trợ quy trình hoàn chỉnh từ phân tích yêu cầu nghiên cứu đến tạo dàn ý, nghiên cứu chi tiết, và chỉnh sửa bài viết.
+An intelligent agent that helps perform in-depth research and create high-quality analytical content. The system supports a complete process from analyzing research requirements to creating outlines, detailed research, and editing articles.
 
-Dự án này bao gồm [tài liệu API chi tiết](docs/api.md) mô tả đầy đủ các endpoints và luồng tương tác giữa các thành phần trong hệ thống.
+This project includes [detailed API documentation](docs/api.md) describing all endpoints and interaction flows between components in the system.
 
-## Tính năng chính
+## Key Features
 
-- Phân tích yêu cầu nghiên cứu và tự động tạo đề cương nghiên cứu chi tiết
-- Tiến hành nghiên cứu chuyên sâu và tổng hợp kết quả có nguồn tham khảo
-- Tạo nội dung hoàn chỉnh với định dạng chuẩn cho tài liệu cuối cùng
-- Theo dõi tiến độ và chi phí sử dụng LLM/search API cho từng task
-- Tối ưu hóa lưu trữ dữ liệu và giảm thiểu dư thừa
-- Hỗ trợ lưu trữ kết quả trên GitHub
+- Analyze research requirements and automatically generate detailed research outlines
+- Conduct in-depth research and synthesize results with references
+- Create complete content with standard formatting for the final document
+- Track progress and cost of using LLM/search APIs for each task
+- Optimize data storage and minimize redundancy
+- Support storing results on GitHub
 
-## Quy trình nghiên cứu hoàn chỉnh
+## Complete Research Process
 
 ```mermaid
 graph TB
-    A[Yêu cầu nghiên cứu] --> B[Phân tích yêu cầu]
-    B --> C[Tạo dàn ý]
-    C --> D[Nghiên cứu từng phần]
-    D --> E[Chỉnh sửa và tổng hợp]
-    E --> F[Lưu trữ kết quả]
-    F --> G[Đăng lên GitHub]
+    A[Research Request] --> B[Requirement Analysis]
+    B --> C[Create Outline]
+    C --> D[Research Each Section]
+    D --> E[Edit and Synthesize]
+    E --> F[Store Results]
+    F --> G[Publish to GitHub]
     
-    subgraph "Phase 1: Chuẩn bị"
+    subgraph "Phase 1: Preparation"
         B
         C
     end
     
-    subgraph "Phase 2: Nghiên cứu"
+    subgraph "Phase 2: Research"
         D
     end
     
-    subgraph "Phase 3: Chỉnh sửa"
+    subgraph "Phase 3: Editing"
         E
     end
     
-    subgraph "Phase 4: Lưu trữ"
+    subgraph "Phase 4: Storage"
         F
         G
     end
 ```
 
-## Kiến trúc hệ thống
+## System Architecture
 
 ```mermaid
 graph TD
@@ -76,7 +76,7 @@ graph TD
     style Cost fill:#bbf,stroke:#333,stroke-width:2px
 ```
 
-## Cài đặt
+## Installation
 
 1. Clone repository:
 ```bash
@@ -84,13 +84,13 @@ git clone https://github.com/yourusername/deep-research-agent.git
 cd deep-research-agent
 ```
 
-2. Cài đặt dependencies:
+2. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-3. Cấu hình environment variables:
-Tạo file `.env` với các biến môi trường sau:
+3. Configure environment variables:
+Create a `.env` file with the following environment variables:
 ```
 # LLM Services
 OPENAI_API_KEY=your_openai_api_key
@@ -101,33 +101,33 @@ PERPLEXITY_API_KEY=your_perplexity_api_key
 GOOGLE_API_KEY=your_google_api_key
 GOOGLE_CSE_ID=your_google_cse_id
 
-# Storage Services (tùy chọn)
+# Storage Services (optional)
 GITHUB_TOKEN=your_github_token
 GITHUB_USERNAME=your_github_username
 GITHUB_REPO=your_github_repo
 ```
 
-## Sử dụng
+## Usage
 
-### Chạy ứng dụng:
+### Run the application:
 ```bash
 uvicorn app.api.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-### API Endpoints chính:
+### Main API Endpoints:
 
-#### 1. Tạo yêu cầu nghiên cứu hoàn chỉnh:
+#### 1. Create a complete research request:
 ```
 POST /api/v1/research/complete
 ```
 Body:
 ```json
 {
-  "query": "Chủ đề cần nghiên cứu"
+  "query": "Research topic"
 }
 ```
 
-#### 2. Kiểm tra trạng thái và kết quả:
+#### 2. Check status and results:
 ```
 GET /api/v1/research/{research_id}
 GET /api/v1/research/{research_id}/status
@@ -136,27 +136,27 @@ GET /api/v1/research/{research_id}/outline
 GET /api/v1/research/{research_id}/cost
 ```
 
-#### 3. Lấy danh sách các nghiên cứu:
+#### 3. Get list of researches:
 ```
 GET /api/v1/research
 ```
 
-## Tài liệu chi tiết
+## Detailed Documentation
 
-- [Tài liệu API đầy đủ](docs/api.md) - Chi tiết về các endpoints, request/response và sequence diagrams
+- [Complete API Documentation](docs/api.md) - Details about endpoints, request/response and sequence diagrams
 
-## Cấu trúc Source Code
+## Source Code Structure
 
-### Tổng quan
+### Overview
 ```
 app/
-├── api/                # API endpoints và routes
-├── core/               # Core services và utilities
-│   ├── config.py       # Cấu hình ứng dụng
+├── api/                # API endpoints and routes
+├── core/               # Core services and utilities
+│   ├── config.py       # Application configuration
 │   └── factory.py      # Service factory pattern
 ├── models/             # Pydantic models
-│   ├── cost.py         # Models cho cost monitoring
-│   ├── research.py     # Models cho research process
+│   ├── cost.py         # Models for cost monitoring
+│   ├── research.py     # Models for research process
 │   └── ...
 ├── services/           # Business logic
 │   ├── core/           # Core services
@@ -165,84 +165,84 @@ app/
 │   │   ├── search/     # Search services
 │   │   └── storage/    # Storage services
 │   └── research/       # Research services
-│       ├── prepare.py  # Phase chuẩn bị
-│       ├── research.py # Phase nghiên cứu
-│       └── edit.py     # Phase chỉnh sửa
+│       ├── prepare.py  # Preparation phase
+│       ├── research.py # Research phase
+│       └── edit.py     # Editing phase
 └── utils/              # Utilities
 ```
 
-### Các Module Chính
+### Main Modules
 
 #### 1. API Layer (`app/api/`)
-- `routes.py`: Định nghĩa tất cả các API endpoints
-- `main.py`: Entry point của ứng dụng FastAPI
+- `routes.py`: Defines all API endpoints
+- `main.py`: Entry point of the FastAPI application
 
 #### 2. Service Layer (`app/services/`)
-- **Core Services**: Các services cơ bản như LLM, Search, Storage
-  - `llm/`: Tích hợp với các LLM APIs (OpenAI, Claude)
-  - `monitoring/cost.py`: Theo dõi và quản lý chi phí sử dụng APIs
-  - `search/`: Tích hợp với các Search APIs (Perplexity, Google)
+- **Core Services**: Basic services like LLM, Search, Storage
+  - `llm/`: Integration with LLM APIs (OpenAI, Claude)
+  - `monitoring/cost.py`: Tracking and managing API usage costs
+  - `search/`: Integration with Search APIs (Perplexity, Google)
   
-- **Research Services**: Xử lý quy trình nghiên cứu
-  - `prepare.py`: Phân tích yêu cầu và tạo dàn ý
-  - `research.py`: Thực hiện nghiên cứu chi tiết
-  - `edit.py`: Chỉnh sửa và tổng hợp kết quả
+- **Research Services**: Handle research workflow
+  - `prepare.py`: Analyze requirements and create outlines
+  - `research.py`: Perform detailed research
+  - `edit.py`: Edit and synthesize results
 
 #### 3. Models (`app/models/`)
-- `research.py`: Các models cho quy trình nghiên cứu
-- `cost.py`: Các models cho việc theo dõi chi phí
+- `research.py`: Models for research process
+- `cost.py`: Models for cost tracking
 
 ## Docker
 
-### Yêu cầu
-- Docker và Docker Compose đã được cài đặt
-- Python 3.11.10 (phiên bản này được sử dụng trong Dockerfile)
+### Requirements
+- Docker and Docker Compose installed
+- Python 3.11.10 (this version is used in Dockerfile)
 
-### Cài đặt và chạy với Docker
+### Install and Run with Docker
 ```bash
-# Sao chép file .env.example thành .env và cấu hình
+# Copy .env.example to .env and configure
 cp .env.example .env
 
-# Xây dựng image
+# Build image
 docker compose build
 
-# Chạy container
+# Run container
 docker compose up -d
 ```
 
-### Kiểm tra logs
+### Check logs
 ```bash
-# Xem logs của container
+# View container logs
 docker logs deep-research-agent
 
-# Xem logs và theo dõi liên tục
+# View logs and follow continuously
 docker logs -f deep-research-agent
 
-# Lọc logs để tìm lỗi
+# Filter logs to find errors
 docker logs deep-research-agent 2>&1 | grep -i error
 ```
 
 ### Test API
 ```bash
-# Gửi yêu cầu nghiên cứu
+# Send a research request
 curl -X POST http://localhost:8000/api/v1/research/complete \
   -H "Content-Type: application/json" \
-  -d '{"query": "Tìm hiểu về ChatGPT là gì?", "max_budget": 1.0}'
+  -d '{"query": "What is ChatGPT?", "max_budget": 1.0}'
 
-# Kiểm tra trạng thái của yêu cầu (thay {research_id} bằng ID thực tế)
+# Check the status of the request (replace {research_id} with actual ID)
 curl http://localhost:8000/api/v1/research/{research_id}/status
 ```
 
-### Xử lý sự cố
-- **Khởi động lại container**: Nếu có thay đổi trong code, hãy build lại image và khởi động lại container:
+### Troubleshooting
+- **Restart container**: If there are changes to the code, rebuild the image and restart the container:
   ```bash
   docker compose down
   docker compose build
   docker compose up -d
   ```
 
-API có sẵn tại: http://localhost:8000/api/v1
+API available at: http://localhost:8000/api/v1
 
 ## License
 
-MIT License - xem [LICENSE](LICENSE) để biết thêm chi tiết.
+MIT License - see [LICENSE](LICENSE) for details.
