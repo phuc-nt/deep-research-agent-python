@@ -1,269 +1,228 @@
-# Implementation Plan
+# Agile Implementation Plan - Deep Research Agent
 
-## Phase 1: Core Components ✅
+## Project Journey
+Dự án Deep Research Agent được phát triển theo phương pháp Agile, tập trung vào việc giao sản phẩm từng phần có giá trị và liên tục phân phối tính năng mới. Dưới đây là lịch sử và hành trình phát triển của dự án.
 
-### 1.1 Project Setup ✅
-- [x] Initialize project structure
-- [x] Set up dependency management
-- [x] Configure development environment
-- [x] Add README.md with project overview
+## Sprint 1: Nền tảng cơ bản ✅
 
-### 1.2 Configuration Management ✅
-- [x] Implement Settings class using Pydantic
-- [x] Set up environment variables
-- [x] Create configuration for different environments
-- [x] Add configuration validation
-- [x] Unit tests for configuration
+### User Stories đã hoàn thành
+- Người dùng có thể khởi tạo và cấu hình dự án
+- Nhà phát triển có thể quản lý môi trường và cấu hình một cách dễ dàng
+- Nhà phát triển có thể xử lý các exception trong hệ thống
 
-### 1.3 Exception Handling ✅
-- [x] Create base exception class
-- [x] Implement specific exception types
-- [x] Add error details and context
-- [x] Unit tests for exceptions
+### Các tính năng đã triển khai
+- ✅ Khởi tạo cấu trúc dự án với README chi tiết
+- ✅ Thiết lập quản lý dependency và môi trường phát triển
+- ✅ Triển khai Settings class sử dụng Pydantic
+- ✅ Thiết lập biến môi trường và validation
+- ✅ Xây dựng hệ thống xử lý exception với context
+- ✅ Hoàn thành unit tests cho configuration và exceptions
 
-### 1.4 Service Factory Pattern ✅
-- [x] Design base service interfaces
-  - [x] BaseLLMService
-  - [x] BaseSearchService
-  - [x] BaseStorageService
-- [x] Implement service factory
-- [x] Add service implementations
-  - [x] OpenAI service
-  - [x] Claude service
-  - [x] Perplexity search
-  - [x] Google search
-  - [x] GitHub storage
-- [x] Unit tests for factory and services
+### Phản hồi & Cải tiến
+- Thêm validation chi tiết hơn cho configuration
+- Cải thiện messages trong exceptions để dễ debug hơn
 
-## Phase 2: Research Service ✅
+## Sprint 2: Kiến trúc dịch vụ cốt lõi ✅
 
-### 2.1 Research Workflow Design ✅
-- [x] Define research process steps
-- [x] Create workflow diagrams
-- [x] Document API specifications
+### User Stories đã hoàn thành
+- Nhà phát triển có thể dễ dàng tích hợp các dịch vụ LLM khác nhau
+- Nhà phát triển có thể thay đổi service search mà không ảnh hưởng đến code
+- Hệ thống có khả năng mở rộng với các services mới trong tương lai
 
-### 2.2 Core Research Components ✅
-- [x] Implement base classes and models (`app/services/research/base.py`)
-- [x] Implement PrepareService (`app/services/research/prepare.py`)
-- [x] Add unit tests for PrepareService
-- [x] Implement ResearchService (`app/services/research/research.py`)
-- [x] Implement EditService (`app/services/research/edit.py`)
-- [x] Add result validation
+### Các tính năng đã triển khai
+- ✅ Thiết kế và triển khai Service Factory Pattern
+- ✅ Tạo các interface cơ bản: BaseLLMService, BaseSearchService, BaseStorageService
+- ✅ Triển khai các dịch vụ cụ thể:
+  - OpenAI service và Claude service
+  - Perplexity search và Google search
+  - GitHub storage service
+- ✅ Hoàn thành unit tests cho factory và các services
 
-### 2.3 Storage Service ✅
-- [x] Design data storage structure
-- [x] Implement ResearchStorageService
-- [x] Implement file-based storage
-- [x] Create optimized data storage format
-- [x] Add load/save methods for task components
-- [x] Unit tests for storage service
+### Phản hồi & Cải tiến
+- Bổ sung thêm DummySearchService để kiểm thử không phụ thuộc API
+- Thêm cơ chế xác thực API key cho các dịch vụ
 
-### 2.4 Integration ✅
-- [x] Integrate with LLM services
-- [x] Integrate with search services
-- [x] Integrate with storage services
-- [x] Add error handling and retries
+## Sprint 3: Quy trình nghiên cứu ✅
 
-### 2.5 Testing ✅
-- [x] Unit tests for base components
-- [x] Unit tests for PrepareService
-- [x] Unit tests for ResearchService
-- [x] Unit tests for EditService
-- [x] Integration tests
-- [x] End-to-end tests with test scripts
-- [x] Error handling tests
+### User Stories đã hoàn thành
+- Hệ thống có thể phân tích yêu cầu nghiên cứu từ người dùng
+- Hệ thống có thể tạo dàn ý nghiên cứu tự động
+- Hệ thống có thể tiến hành nghiên cứu chi tiết theo dàn ý
+- Hệ thống có thể chỉnh sửa và tổng hợp nội dung thành kết quả cuối cùng
 
-## Phase 3: API Layer ✅
+### Các tính năng đã triển khai
+- ✅ Thiết kế quy trình nghiên cứu với các bước rõ ràng
+- ✅ Triển khai PrepareService (phân tích yêu cầu, tạo dàn ý)
+- ✅ Triển khai ResearchService (nghiên cứu chi tiết từng phần)
+- ✅ Triển khai EditService (chỉnh sửa và tổng hợp nội dung)
+- ✅ Xây dựng cơ chế validation cho kết quả
+- ✅ Tích hợp với các LLM services và search services
+- ✅ Tạo cấu trúc lưu trữ dữ liệu tối ưu cho nghiên cứu
+- ✅ Hoàn thành các unit tests và integration tests
 
-### 3.1 API Design ✅
-- [x] Define API endpoints
-- [x] Create request/response models
-- [x] Design authentication system
-- [x] Plan rate limiting
+### Phản hồi & Cải tiến
+- Điều chỉnh prompt để tạo dàn ý chi tiết và phù hợp hơn
+- Cải thiện cơ chế phân tích đề cương nghiên cứu
+- Tối ưu hóa cách gọi API để giảm chi phí
 
-### 3.2 Implementation ✅
-- [x] Set up FastAPI application
-- [x] Implement API endpoints
-- [x] Add progress tracking
-- [x] Implement status monitoring
-- [x] Add validation and error handling
+## Sprint 4: API Layer và Tương tác ✅
 
-### 3.3 Documentation ✅
-- [x] API documentation
-- [x] Usage examples
-- [x] Sequence diagrams
-- [x] Data models documentation
+### User Stories đã hoàn thành
+- Người dùng có thể gửi yêu cầu nghiên cứu qua API
+- Người dùng có thể theo dõi tiến độ của yêu cầu nghiên cứu
+- Người dùng có thể lấy kết quả nghiên cứu hoàn chỉnh
 
-### 3.4 Testing ✅
-- [x] API endpoint tests
-- [x] End-to-end workflow tests
-- [x] Validation tests
+### Các tính năng đã triển khai
+- ✅ Xây dựng ứng dụng FastAPI với các endpoints đầy đủ
+- ✅ Tạo các request và response models với validation
+- ✅ Thiết kế hệ thống theo dõi tiến độ
+- ✅ Triển khai API documentation chi tiết
+- ✅ Tạo sequence diagrams mô tả luồng xử lý
+- ✅ Hoàn thành API endpoint tests và end-to-end tests
 
-## Phase 4: Advanced Features ✅
+### Phản hồi & Cải tiến
+- Bổ sung thêm thông tin trong progress tracking
+- Tạo thêm các response examples trong API docs
 
-### 4.1 Progress Tracking ✅
-- [x] Design progress tracking model
-- [x] Implement progress monitoring
-- [x] Add progress API endpoint
-- [x] Implement callback mechanism
+## Sprint 5: Tính năng nâng cao và Flow hoàn chỉnh ✅
 
-### 4.2 Validation and Retry Mechanisms ✅
-- [x] Implement input validation
-- [x] Add output validation for each phase
-- [x] Implement retry mechanisms
-- [x] Add consistency checks
+### User Stories đã hoàn thành
+- Người dùng có thể thấy tiến độ chi tiết trong quá trình nghiên cứu
+- Hệ thống tự động chuyển từ nghiên cứu sang chỉnh sửa
+- Người dùng có thể xem chi phí sử dụng API cho mỗi task
 
-### 4.3 Enhanced Data Storage ✅
-- [x] Optimize data storage structure
-- [x] Implement shared data access
-- [x] Add caching for improved performance
-- [x] Support for continuation from previous phases
+### Các tính năng đã triển khai
+- ✅ Xây dựng hệ thống theo dõi tiến độ chi tiết
+- ✅ Triển khai cơ chế validation và retry thông minh
+- ✅ Tối ưu hóa cấu trúc lưu trữ dữ liệu
+- ✅ Tạo flow tự động từ research đến edit
+- ✅ Phát hiện tự động khi nghiên cứu đã hoàn thành
+- ✅ Xây dựng hệ thống theo dõi chi phí LLM và search API
+- ✅ Triển khai cơ chế retry và fallback cho search services
 
-## Phase 5: Flow Automation & Process Improvement 🚧
+### Phản hồi & Cải tiến
+- Cải thiện logic phát hiện hoàn thành nghiên cứu
+- Bổ sung thông tin chi tiết hơn trong báo cáo chi phí
 
-### 5.1 Automated End-to-End Research Flow ✅ COMPLETED
-- [x] Tích hợp phase 1 và phase 2 thành một flow hoàn chỉnh
-- [x] Tự động phát hiện khi research đã xong để chuyển sang edit
-- [x] Triển khai quá trình transition mượt mà giữa các phase
-- [x] Cải thiện cơ chế theo dõi trạng thái hoàn thành của từng section
+## Sprint 6: Deployment và Tối ưu hiệu suất ✅
 
-### 5.2 Process Monitoring & Intelligence 🚧 IN PROGRESS
-- [ ] Thêm các metrics cho quá trình research
-- [ ] Phân tích performance của từng phase
-- [x] Cải thiện cơ chế báo cáo lỗi và retry
-- [ ] Thêm hệ thống notifications cho các sự kiện quan trọng
+### User Stories đã hoàn thành
+- Nhà phát triển có thể triển khai ứng dụng dễ dàng với Docker
+- Hệ thống hoạt động hiệu quả với tài nguyên tối thiểu
+- Ứng dụng xử lý được nhiều task cùng lúc mà không bị treo
 
-### 5.3 Deployment & DevOps 🚧 IN PROGRESS
-- [x] Tạo Dockerfile tối ưu cho ứng dụng
-- [x] Cấu hình Docker Compose cho development và production
-- [x] Thêm health check endpoint cho container monitoring
-- [x] Cấu hình volumes để lưu trữ dữ liệu nghiên cứu
-- [x] Thêm hướng dẫn chi tiết về cách sử dụng Docker
-- [ ] CI/CD pipeline setup
-- [ ] Monitoring và alerting
-- [ ] Log aggregation
+### Các tính năng đã triển khai
+- ✅ Tạo Dockerfile tối ưu cho ứng dụng
+- ✅ Cấu hình Docker Compose cho development và production
+- ✅ Thêm health check endpoint cho container monitoring
+- ✅ Cấu hình volumes để lưu trữ dữ liệu nghiên cứu
+- ✅ Sửa lỗi coroutine trong async/await framework
+- ✅ Cải thiện cấu trúc async/await trong toàn bộ codebase
+- ✅ Tối ưu hóa thời gian khởi động server và sử dụng bộ nhớ
+- ✅ Cập nhật phiên bản Python (3.11.10)
 
-### 5.4 Advanced Continuity & Recovery 🚧 PLANNED
-- [ ] Thêm checkpoint mechanism cho mỗi phase
-- [ ] Tự động recovery khi quá trình bị gián đoạn
-- [ ] Cải thiện handling cho long-running tasks
-- [ ] Implement graceful degradation khi có lỗi
+### Phản hồi & Cải tiến
+- Thêm hướng dẫn chi tiết về cách sử dụng Docker
+- Cải thiện xử lý lỗi trong môi trường container
 
-### 5.5 Cost Tracking & Optimization ✅ COMPLETED
-- [x] Xây dựng hệ thống theo dõi chi phí LLM
-- [x] Theo dõi chi phí tìm kiếm và sử dụng API
-- [x] Lưu trữ thông tin chi phí theo từng task
-- [x] Tùy chỉnh mức giá từ biến môi trường
-- [x] Cung cấp báo cáo chi phí chi tiết
+## Sprint hiện tại: Monitoring và DevOps 🚧
 
-### 5.6 Search Service Enhancement ✅ COMPLETED
-- [x] Thêm DummySearchService cho các trường hợp không có API
-- [x] Cải thiện cơ chế kiểm tra kết nối
-- [x] Thêm retry và fallback tự động
-- [x] Xử lý tốt hơn các trường hợp lỗi
-- [x] Tích hợp với hệ thống theo dõi chi phí
+### User Stories đang thực hiện
+- Người dùng nhận được thông báo khi có sự kiện quan trọng
+- Hệ thống có khả năng tự phục hồi sau lỗi
+- Nhà phát triển có công cụ để phân tích hiệu suất hệ thống
 
-### 5.7 Testing & Optimization 🚧 IN PROGRESS
-- [x] Test E2E cho automated flow
-- [ ] Performance benchmarking cho toàn bộ quy trình
-- [x] Test Docker deployment
-- [ ] Stress testing với nhiều concurrent tasks
-- [ ] Optimizations dựa trên metrics và performance data
+### Các tính năng đang triển khai
+- 🚧 Thêm metrics cho quá trình nghiên cứu
+- 🚧 Phân tích performance của từng phase
+- ✅ Cải thiện cơ chế báo cáo lỗi và retry
+- 🚧 Hệ thống notifications cho các sự kiện quan trọng
+- 🚧 CI/CD pipeline setup 
+- 🚧 Performance benchmarking cho toàn bộ quy trình
+- 🚧 Stress testing với nhiều concurrent tasks
 
-### 5.8 Server Performance Optimization ✅ COMPLETED
-- [x] Loại bỏ việc tải lại các task cũ khi khởi động
-- [x] Cải thiện thời gian khởi động server
-- [x] Giảm bộ nhớ sử dụng khi xử lý nhiều task
-- [x] Tối ưu hóa tài nguyên sử dụng
+## Kế hoạch cho các Sprint tiếp theo
 
-### 5.9 Async/Await Framework Improvement ✅ COMPLETED
-- [x] Sửa lỗi coroutine trong các phương thức async
-- [x] Cải thiện cấu trúc async/await trong toàn bộ code base
-- [x] Đảm bảo các phương thức async được gọi với await
-- [x] Thêm phương thức initialize() cho async services
-- [x] Cập nhật phiên bản Python trong Dockerfile (3.11.10)
-- [x] Cập nhật hướng dẫn xử lý async/await trong README
+### Sprint 8: High Availability & Scaling 🚧
+- Implement load balancing
+- Horizontal scaling với multiple instances
+- Sử dụng message queue cho task processing
+- Cấu hình Kubernetes deployment
 
-## Phase 6: Scaling & Advanced Features 🚧
+### Sprint 9: Advanced Analytics & Reporting 🚧
+- Dashboard cho monitoring research tasks
+- Thống kê và báo cáo về performance
+- Visualization cho tiến độ và kết quả
+- Export reports dưới nhiều định dạng
 
-### 6.1 High Availability & Scaling 🚧
-- [ ] Implement load balancing
-- [ ] Horizontal scaling với multiple instances
-- [ ] Sử dụng message queue cho task processing (RabbitMQ/Kafka)
-- [ ] Cấu hình Kubernetes deployment
-- [ ] CI/CD pipeline setup
+### Sprint 10: Nâng cao khả năng nghiên cứu 🚧
+- Thêm nhiều LLM providers (Mistral, Gemini, etc.)
+- Tích hợp nhiều search engines
+- Web crawling cho specialized domains
+- PDF và document parsing
+- Academic paper database integration
 
-### 6.2 Advanced Analytics & Reporting 🚧
-- [ ] Dashboard cho monitoring research tasks
-- [ ] Thống kê và báo cáo về performance
-- [ ] Visualization cho tiến độ và kết quả
-- [ ] Export reports dưới nhiều định dạng (PDF, CSV, etc.)
-- [ ] Scheduled report generation
+## Tính năng đã phát hành
 
-### 6.3 Multi-Model Enhancement 🚧
-- [ ] Thêm nhiều LLM providers (Mistral, Gemini, etc.)
-- [ ] Model switching dựa trên task complexity
-- [ ] Cost optimization strategy cho LLM usage
-- [ ] Fine-tuning option cho specific domains
-- [ ] Evaluation framework cho model performance
+Dự án đã triển khai và hoàn thành các tính năng sau đây:
 
-### 6.4 Multi-source Research 🚧
-- [ ] Tích hợp nhiều search engines
-- [ ] Web crawling cho specialized domains
-- [ ] PDF và document parsing
-- [ ] Academic paper database integration (Arxiv, PubMed, etc.)
-- [ ] Multilingual search support
+1. **Quá trình nghiên cứu hoàn chỉnh**
+   - ✅ Phân tích yêu cầu nghiên cứu và tạo dàn ý thông minh
+   - ✅ Nghiên cứu chuyên sâu từng phần với độ dài 350-400 từ/phần
+   - ✅ Chỉnh sửa và tổng hợp nội dung thành bài viết hoàn chỉnh
+   - ✅ Tự động phát hiện khi nghiên cứu hoàn thành để chuyển sang edit
 
-### 6.5 Advanced Security & Authentication 🚧
-- [ ] Implement OAuth2 & JWT authentication
-- [ ] Rate limiting và usage quotas
-- [ ] Input sanitization & validation
-- [ ] GDPR compliance features
-- [ ] Access control & permission levels
+2. **API và tương tác**
+   - ✅ API endpoints đầy đủ với documentation chi tiết
+   - ✅ Sequence diagrams mô tả luồng xử lý
+   - ✅ Progress tracking và status monitoring
+   - ✅ Health check endpoint
 
-## Current Status
-- Phase 1 (Core Components) ✅ COMPLETED
-- Phase 2 (Research Service) ✅ COMPLETED
-- Phase 3 (API Layer) ✅ COMPLETED
-- Phase 4 (Advanced Features) ✅ COMPLETED
-- Phase 5 (Flow Automation & Process Improvement) 🚧 IN PROGRESS
-  - 5.1 Automated End-to-End Research Flow ✅ COMPLETED  
-  - 5.2 Process Monitoring & Intelligence 🚧 IN PROGRESS
-  - 5.3 Deployment & DevOps 🚧 IN PROGRESS
-  - 5.4 Advanced Continuity & Recovery 🚧 PLANNED
-  - 5.5 Cost Tracking & Optimization ✅ COMPLETED
-  - 5.6 Search Service Enhancement ✅ COMPLETED
-  - 5.7 Testing & Optimization 🚧 IN PROGRESS
-  - 5.8 Server Performance Optimization ✅ COMPLETED
-  - 5.9 Async/Await Framework Improvement ✅ COMPLETED
-- Phase 6 (Scaling & Advanced Features) 🚧 PLANNED
+3. **Lưu trữ và quản lý dữ liệu**
+   - ✅ Tối ưu hóa cấu trúc lưu trữ dữ liệu nghiên cứu
+   - ✅ GitHub integration để lưu trữ kết quả nghiên cứu
+   - ✅ Cấu hình volumes để lưu trữ dữ liệu trong Docker
 
-## Notes
-- Các service có cấu trúc module hóa cao, dễ bảo trì và mở rộng
-- Đảm bảo validation và error handling xuyên suốt quy trình
-- Tất cả API endpoints đã được documentation đầy đủ
-- Cơ chế lưu trữ dữ liệu đã được tối ưu hóa
-- Integration tests và E2E tests được thêm vào để đảm bảo chất lượng
-- Docker containerization giúp triển khai dễ dàng trong nhiều môi trường
-- Hệ thống theo dõi chi phí giúp kiểm soát và tối ưu hóa sử dụng tài nguyên
-- Cơ chế retry và fallback giúp xử lý tốt các trường hợp lỗi
-- Đã sửa lỗi coroutine trong async/await framework để đảm bảo ổn định trong Docker
+4. **Chất lượng và hiệu suất**
+   - ✅ Validation và retry mechanisms để đảm bảo chất lượng
+   - ✅ Hệ thống logging và error handling
+   - ✅ End-to-end test scripts
+   - ✅ Cải thiện hiệu suất server và thời gian khởi động
 
-## Tính năng chính đã hoàn thành
-1. Phân tích yêu cầu nghiên cứu và tạo dàn ý
-2. Nghiên cứu chuyên sâu từng phần
-3. Chỉnh sửa và tổng hợp nội dung
-4. Lưu trữ và quản lý dữ liệu nghiên cứu
-5. Theo dõi tiến độ chi tiết
-6. API endpoints đầy đủ
-7. Validation và retry để đảm bảo chất lượng
-8. Tối ưu hóa lưu trữ dữ liệu
-9. Docker containerization với xử lý lỗi coroutine
-10. Phân tích yêu cầu tự động thông minh
-11. Hệ thống logging và error handling
-12. End-to-end test scripts
-13. Docker containerization và deployment guide
-14. API health check endpoint
-15. Theo dõi chi phí chi tiết theo từng task
-16. Tối ưu hóa xử lý search service với retry và fallback
-17. Cải thiện hiệu suất server và thời gian khởi động 
+5. **Monitoring và optimization**
+   - ✅ Theo dõi chi phí chi tiết theo từng task
+   - ✅ Tối ưu hóa xử lý search service với retry và fallback
+   - ✅ Cải thiện cơ chế báo cáo lỗi và retry
+
+6. **Deployment**
+   - ✅ Docker containerization với xử lý lỗi coroutine
+   - ✅ Docker Compose setup cho development và production
+   - ✅ Hướng dẫn chi tiết về cách sử dụng Docker
+
+## Tài liệu và hướng dẫn
+- [Tài liệu API đầy đủ](api.md) - Chi tiết về các endpoints, request/response và sequence diagrams
+- [README.md](../README.md) - Tổng quan dự án và hướng dẫn cài đặt 
+
+## Tóm tắt tiến độ tổng thể
+
+| Chỉ số | Giá trị |
+|--------|---------|
+| Tổng số Sprint dự kiến | 10 |
+| Sprint đã hoàn thành | 6 |
+| Sprint hiện tại | Sprint 7 (Monitoring và DevOps) |
+| Sprint còn lại | 3 |
+| Hoàn thành dự án | 60% |
+
+### Danh sách tất cả các Sprint
+1. ✅ **Sprint 1: Nền tảng cơ bản** - Cấu trúc dự án, quản lý cấu hình và xử lý exception
+2. ✅ **Sprint 2: Kiến trúc dịch vụ cốt lõi** - Factory pattern và các service interface
+3. ✅ **Sprint 3: Quy trình nghiên cứu** - Phân tích yêu cầu, tạo dàn ý, nghiên cứu và chỉnh sửa
+4. ✅ **Sprint 4: API Layer và Tương tác** - Endpoints, request/response models và documentation
+5. ✅ **Sprint 5: Tính năng nâng cao và Flow hoàn chỉnh** - Progress tracking, validation và flow tự động
+6. ✅ **Sprint 6: Deployment và Tối ưu hiệu suất** - Docker, hiệu suất server và async/await
+7. 🚧 **Sprint 7: Monitoring và DevOps** - Metrics, notifications và CI/CD (hiện tại)
+8. 🚧 **Sprint 8: High Availability & Scaling** - Load balancing, horizontal scaling và Kubernetes
+9. 🚧 **Sprint 9: Advanced Analytics & Reporting** - Dashboard, visualization và reports
+10. 🚧 **Sprint 10: Nâng cao khả năng nghiên cứu** - Multi-LLM, multi-source và xử lý tài liệu
+
+Dự án đã hoàn thành thành công 6/10 sprint theo kế hoạch, với các chức năng cốt lõi đã được triển khai và triển khai. Hiện tại chúng tôi đang làm việc trên Sprint 7 (Monitoring và DevOps), với 3 sprint tiếp theo được lên kế hoạch để nâng cao khả năng, khả năng mở rộng và phân tích. Các tính năng hiện đã triển khai cung cấp một hệ thống agent nghiên cứu hoạt động đầy đủ với tài liệu API chi tiết, triển khai Docker và quy trình nghiên cứu toàn diện. 
