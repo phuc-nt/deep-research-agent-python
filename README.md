@@ -1,8 +1,11 @@
-# Deep Research Agent
+# Deep Research Automation
 
-An intelligent agent that helps perform in-depth research and create high-quality analytical content. The system supports a complete process from analyzing research requirements to creating outlines, detailed research, and editing articles.
+An automated workflow system for deep research integrated with LLM (Large Language Model). This system automates the entire research process from requirement analysis, outline creation, information gathering and synthesis, to producing high-quality analytical content.
 
-This project includes [detailed API documentation](docs/api.md) describing all endpoints and interaction flows between components in the system.
+## 📚 Documentation
+
+- **[API Specification (API_SPEC_VI.md)](docs/API_SPEC_VI.md)** - Detailed API endpoints, request/response and sequence diagrams _(for users/integrators, Vietnamese)_
+- **[Architecture Overview (ARCHITECTURE_OVERVIEW_VI.md)](docs/ARCHITECTURE_OVERVIEW_VI.md)** - System architecture and developer guide _(for developers, Vietnamese)_
 
 ## Key Features
 
@@ -41,39 +44,6 @@ graph TB
         F
         G
     end
-```
-
-## System Architecture
-
-```mermaid
-graph TD
-    Client[Client/API Consumers] --> API[API Layer]
-    
-    subgraph "Backend Services"
-        API --> Prepare[Prepare Service]
-        API --> Research[Research Service]
-        API --> Edit[Edit Service]
-        API --> Storage[Storage Service]
-        API --> Cost[Cost Monitoring Service]
-        
-        Prepare --> LLM1[LLM Service]
-        Prepare --> Search1[Search Service]
-        Research --> LLM2[LLM Service]
-        Research --> Search2[Search Service]
-        Edit --> LLM3[LLM Service]
-        
-        Storage --> FileSystem[File System]
-        Storage --> GitHub[GitHub Storage]
-        
-        LLM1 --> Cost
-        LLM2 --> Cost
-        LLM3 --> Cost
-        Search1 --> Cost
-        Search2 --> Cost
-    end
-    
-    style API fill:#f9f,stroke:#333,stroke-width:2px
-    style Cost fill:#bbf,stroke:#333,stroke-width:2px
 ```
 
 ## Installation
@@ -141,56 +111,10 @@ GET /api/v1/research/{research_id}/cost
 GET /api/v1/research
 ```
 
-## Detailed Documentation
+## 📖 Learn More
 
-- [Complete API Documentation](docs/api.md) - Details about endpoints, request/response and sequence diagrams
-
-## Source Code Structure
-
-### Overview
-```
-app/
-├── api/                # API endpoints and routes
-├── core/               # Core services and utilities
-│   ├── config.py       # Application configuration
-│   └── factory.py      # Service factory pattern
-├── models/             # Pydantic models
-│   ├── cost.py         # Models for cost monitoring
-│   ├── research.py     # Models for research process
-│   └── ...
-├── services/           # Business logic
-│   ├── core/           # Core services
-│   │   ├── llm/        # LLM services (OpenAI, Claude)
-│   │   ├── monitoring/ # Cost monitoring
-│   │   ├── search/     # Search services
-│   │   └── storage/    # Storage services
-│   └── research/       # Research services
-│       ├── prepare.py  # Preparation phase
-│       ├── research.py # Research phase
-│       └── edit.py     # Editing phase
-└── utils/              # Utilities
-```
-
-### Main Modules
-
-#### 1. API Layer (`app/api/`)
-- `routes.py`: Defines all API endpoints
-- `main.py`: Entry point of the FastAPI application
-
-#### 2. Service Layer (`app/services/`)
-- **Core Services**: Basic services like LLM, Search, Storage
-  - `llm/`: Integration with LLM APIs (OpenAI, Claude)
-  - `monitoring/cost.py`: Tracking and managing API usage costs
-  - `search/`: Integration with Search APIs (Perplexity, Google)
-  
-- **Research Services**: Handle research workflow
-  - `prepare.py`: Analyze requirements and create outlines
-  - `research.py`: Perform detailed research
-  - `edit.py`: Edit and synthesize results
-
-#### 3. Models (`app/models/`)
-- `research.py`: Models for research process
-- `cost.py`: Models for cost tracking
+- **API Details**: See [API_SPEC_VI.md](docs/API_SPEC_VI.md) for information about endpoints
+- **System Architecture**: See [ARCHITECTURE_OVERVIEW_VI.md](docs/ARCHITECTURE_OVERVIEW_VI.md) to understand the structure and design
 
 ## Docker
 

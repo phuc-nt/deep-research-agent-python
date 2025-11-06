@@ -1,6 +1,8 @@
-# Deep Research Agent API
+# Deep Research Automation - API Specification
 
-API cho hệ thống nghiên cứu tự động sử dụng AI. Hệ thống cung cấp khả năng thực hiện toàn bộ quy trình nghiên cứu tự động, bao gồm phân tích yêu cầu, tạo dàn ý, nghiên cứu chi tiết, và chỉnh sửa cuối cùng. Mỗi phần trong bài nghiên cứu sẽ có độ dài từ 350-400 từ, đảm bảo độ chi tiết và chất lượng thông tin.
+API cho hệ thống tự động hóa quy trình nghiên cứu chuyên sâu tích hợp LLM. Hệ thống cung cấp khả năng thực hiện toàn bộ quy trình nghiên cứu tự động, bao gồm phân tích yêu cầu, tạo dàn ý, thu thập và tổng hợp thông tin, và chỉnh sửa cuối cùng. Mỗi phần trong bài nghiên cứu sẽ có độ dài từ 350-400 từ, đảm bảo độ chi tiết và chất lượng thông tin.
+
+> **Dành cho Developer**: Xem [ARCHITECTURE_OVERVIEW_VI.md](ARCHITECTURE_OVERVIEW_VI.md) để hiểu chi tiết về kiến trúc hệ thống, design patterns, và cấu trúc code.
 
 ## Base URL
 

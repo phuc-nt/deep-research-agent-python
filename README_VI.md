@@ -1,8 +1,11 @@
-# Deep Research Agent
+# Deep Research Automation
 
-Một agent thông minh giúp thực hiện nghiên cứu chuyên sâu và tạo ra các bài viết phân tích chất lượng cao. Hệ thống hỗ trợ quy trình hoàn chỉnh từ phân tích yêu cầu nghiên cứu đến tạo dàn ý, nghiên cứu chi tiết, và chỉnh sửa bài viết.
+Hệ thống tự động hóa quy trình nghiên cứu chuyên sâu tích hợp LLM (Large Language Model). Hệ thống này giúp thực hiện toàn bộ quy trình từ phân tích yêu cầu, tạo dàn ý, thu thập và tổng hợp thông tin, đến tạo ra các bài viết phân tích chất lượng cao.
 
-Dự án này bao gồm [tài liệu API chi tiết](docs/api.md) mô tả đầy đủ các endpoints và luồng tương tác giữa các thành phần trong hệ thống.
+## 📚 Tài liệu
+
+- **[API Specification (API_SPEC_VI.md)](docs/API_SPEC_VI.md)** - Chi tiết về API endpoints, request/response và sequence diagrams _(cho người dùng/integrator)_
+- **[Architecture Overview (ARCHITECTURE_OVERVIEW_VI.md)](docs/ARCHITECTURE_OVERVIEW_VI.md)** - Kiến trúc hệ thống và hướng dẫn cho developer _(cho developer)_
 
 ## Tính năng chính
 
@@ -41,39 +44,6 @@ graph TB
         F
         G
     end
-```
-
-## Kiến trúc hệ thống
-
-```mermaid
-graph TD
-    Client[Client/API Consumers] --> API[API Layer]
-    
-    subgraph "Backend Services"
-        API --> Prepare[Prepare Service]
-        API --> Research[Research Service]
-        API --> Edit[Edit Service]
-        API --> Storage[Storage Service]
-        API --> Cost[Cost Monitoring Service]
-        
-        Prepare --> LLM1[LLM Service]
-        Prepare --> Search1[Search Service]
-        Research --> LLM2[LLM Service]
-        Research --> Search2[Search Service]
-        Edit --> LLM3[LLM Service]
-        
-        Storage --> FileSystem[File System]
-        Storage --> GitHub[GitHub Storage]
-        
-        LLM1 --> Cost
-        LLM2 --> Cost
-        LLM3 --> Cost
-        Search1 --> Cost
-        Search2 --> Cost
-    end
-    
-    style API fill:#f9f,stroke:#333,stroke-width:2px
-    style Cost fill:#bbf,stroke:#333,stroke-width:2px
 ```
 
 ## Cài đặt
@@ -141,56 +111,10 @@ GET /api/v1/research/{research_id}/cost
 GET /api/v1/research
 ```
 
-## Tài liệu chi tiết
+## 📖 Tìm hiểu thêm
 
-- [Tài liệu API đầy đủ](docs/api.md) - Chi tiết về các endpoints, request/response và sequence diagrams
-
-## Cấu trúc Source Code
-
-### Tổng quan
-```
-app/
-├── api/                # API endpoints và routes
-├── core/               # Core services và utilities
-│   ├── config.py       # Cấu hình ứng dụng
-│   └── factory.py      # Service factory pattern
-├── models/             # Pydantic models
-│   ├── cost.py         # Models cho cost monitoring
-│   ├── research.py     # Models cho research process
-│   └── ...
-├── services/           # Business logic
-│   ├── core/           # Core services
-│   │   ├── llm/        # LLM services (OpenAI, Claude)
-│   │   ├── monitoring/ # Cost monitoring
-│   │   ├── search/     # Search services
-│   │   └── storage/    # Storage services
-│   └── research/       # Research services
-│       ├── prepare.py  # Phase chuẩn bị
-│       ├── research.py # Phase nghiên cứu
-│       └── edit.py     # Phase chỉnh sửa
-└── utils/              # Utilities
-```
-
-### Các Module Chính
-
-#### 1. API Layer (`app/api/`)
-- `routes.py`: Định nghĩa tất cả các API endpoints
-- `main.py`: Entry point của ứng dụng FastAPI
-
-#### 2. Service Layer (`app/services/`)
-- **Core Services**: Các services cơ bản như LLM, Search, Storage
-  - `llm/`: Tích hợp với các LLM APIs (OpenAI, Claude)
-  - `monitoring/cost.py`: Theo dõi và quản lý chi phí sử dụng APIs
-  - `search/`: Tích hợp với các Search APIs (Perplexity, Google)
-  
-- **Research Services**: Xử lý quy trình nghiên cứu
-  - `prepare.py`: Phân tích yêu cầu và tạo dàn ý
-  - `research.py`: Thực hiện nghiên cứu chi tiết
-  - `edit.py`: Chỉnh sửa và tổng hợp kết quả
-
-#### 3. Models (`app/models/`)
-- `research.py`: Các models cho quy trình nghiên cứu
-- `cost.py`: Các models cho việc theo dõi chi phí
+- **Chi tiết về API**: Xem [API_SPEC_VI.md](docs/API_SPEC_VI.md) để biết thông tin về các endpoints
+- **Kiến trúc hệ thống**: Xem [ARCHITECTURE_OVERVIEW_VI.md](docs/ARCHITECTURE_OVERVIEW_VI.md) để hiểu cấu trúc và thiết kế hệ thống
 
 ## Docker
 
